@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "iqr.h"
 #include "point.h"
 
 namespace lda {
@@ -16,9 +15,7 @@ namespace lda {
             float distance = centroid.distance(point);
             point.m_distance.second = distance;
         }
-        /** sort and remove outliers */
         Point::sort(points);
-        points = iqr::denoise(points);
         return points;
     }
 }
