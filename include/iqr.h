@@ -2,6 +2,7 @@
 #define IQR_H
 
 #include "point.h"
+#include "io.h"
 #include <vector>
 
 namespace iqr {
@@ -41,6 +42,5 @@ std::vector<Point> denoise(std::vector<Point> points)
     // IO::writeDist(m_points, "./build/conditioned.csv");
     return points;
 }
-
 }
 #endif /* IQR_H */
