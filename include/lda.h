@@ -4,19 +4,12 @@
 #include <vector>
 
 #include "point.h"
+#include "logger.h"
+#include "timer.h"
 
 namespace lda {
 
-    std::vector<Point> reduce(std::vector<Point>& points)
-    {
-        /** find within-point variance using the centroid */
-        Point centroid = Point::centroid(points);
-        for (auto& point : points) {
-            float distance = centroid.distance(point);
-            point.m_distance.second = distance;
-        }
-        Point::sort(points);
-        return points;
-    }
+    std::vector<Point> reduce(std::vector<Point>& points);
+
 }
 #endif /* LDA_H */
