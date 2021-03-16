@@ -6,17 +6,17 @@
 #include "logger.h"
 #include "timer.h"
 
-float elbow::find(std::vector<float>& knn4)
+float elbow::find(std::vector<float>& x)
 {
     Timer timer;
     /** sort in descending order */
-    std::sort(knn4.begin(), knn4.end(), std::greater<>());
+    std::sort(x.begin(), x.end(), std::greater<>());
 
     /** evaluate successive angular distances */
     std::vector<std::pair<float, float>> angles;
-    for (int i = 1; i < knn4.size() - 1; i++) {
-        float angle = std::asin(knn4[i + 1] - knn4[i]);
-        angles.emplace_back(knn4[i], angle);
+    for (int i = 5; i < x.size() - 5; i++) {
+        float angle = std::asin(x[i + 5] - x[i]);
+        angles.emplace_back(x[i], angle);
     }
 
     /** find the max second derivative */
