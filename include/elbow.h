@@ -5,7 +5,7 @@
 
 namespace elbow {
 
-float find(std::vector<float>& knn4);
+float find(std::vector<float>& x);
 
 }
 #endif /* ELBOW_H */
