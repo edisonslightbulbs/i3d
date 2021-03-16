@@ -26,7 +26,8 @@ float elbow::find(std::vector<float>& knn4)
         float d2 = angles[i + 1].second - angles[i].second;
 
         /** evaluate second derivative-based central difference */
-        float candidate = d1 + d2 - 2 * angles[i].second;
+        //float candidate = d1 + d2 - 2 * angles[i].second;
+        float candidate = d1 + d2 /2;
 
         /** elbow corresponds to distance with the max second derivative */
         if (candidate > sd) {
