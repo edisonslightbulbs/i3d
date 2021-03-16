@@ -4,6 +4,7 @@
 #include "point.h"
 #include "logger.h"
 #include "timer.h"
+#include "iqr.h"
 
 std::vector<Point> lda::reduce(std::vector<Point>& points)
 {
@@ -16,7 +17,10 @@ std::vector<Point> lda::reduce(std::vector<Point>& points)
     }
     Point::sort(points);
 
+    /** remove outliers */
+    std::vector<Point> denoisedPoints = iqr::denoise(points);
+
     LOG(INFO) << timer.getDuration() << " ms: dimension reduction runtime";
 
-    return points;
+    return denoisedPoints;
 }
