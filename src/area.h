@@ -57,6 +57,10 @@ namespace area {
             y.push_back(point.m_y);
             dist.push_back(point.m_distance.second);
         }
+
+        /** sort in descending order */
+        //std::sort(x.begin(), x.end(), std::greater<>());
+
         /** Clip at axis cliffs */
         std::pair<std::vector<float>, std::vector<float>> xSplit = splitAxis(x);
         std::pair<std::vector<float>, std::vector<float>> ySplit = splitAxis(y);
