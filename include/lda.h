@@ -9,7 +9,7 @@
 
 namespace lda {
 
-    std::vector<Point> reduce(std::vector<Point>& points);
+    std::vector<Point> analyze(std::vector<Point>& points);
 
 }
 #endif /* LDA_H */

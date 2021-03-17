@@ -6,7 +6,7 @@
 #include "timer.h"
 #include "iqr.h"
 
-std::vector<Point> lda::reduce(std::vector<Point>& points)
+std::vector<Point> lda::analyze(std::vector<Point>& points)
 {
     Timer timer;
     /** find within-point variance using the centroid */
@@ -19,7 +19,6 @@ std::vector<Point> lda::reduce(std::vector<Point>& points)
 
     /** remove outliers */
     std::vector<Point> denoisedPoints = iqr::denoise(points);
-
     LOG(INFO) << timer.getDuration() << " ms: dimension reduction runtime";
 
     return denoisedPoints;

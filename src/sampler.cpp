@@ -11,7 +11,7 @@ std::vector<Point> sampler::sample(std::vector<Point> points)
     /** find centroid */
     Point center = Point::centroid(points);
 
-    /** compute distances from centroid for each point */
+    /** segment distances from centroid for each point */
     for (auto& point : points) {
         float distance = point.distance(center);
         point.m_distance.second = distance;

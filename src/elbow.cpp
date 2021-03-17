@@ -9,6 +9,7 @@
 float elbow::find(std::vector<float>& x)
 {
     Timer timer;
+    /** sort in descending order */
 
     /** evaluate successive angular distances */
     std::vector<std::pair<float, float>> angles;

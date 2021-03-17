@@ -9,86 +9,69 @@
 #include "point.h"
 #include "io.h"
 
-namespace area {
+namespace roi {
 
-    int queryIndex(std::vector<float>& axis, const float& key){
-        auto itr = std::find(axis.begin(), axis.end(), key);
-        return std::distance(axis.begin(), itr);
+    std::vector<float> descend (std::vector<float> axisVector){
+        std::sort(axisVector.begin(), axisVector.end(), std::greater<>());
+        return axisVector;
     }
 
-    std::pair<std::vector<float>, std::vector<float>> splitAxis(std::vector<float> axis){
+    std::pair<std::vector<float>, std::vector<float>> split(std::vector<float> axisVector){
         /** find axis center */
-        float sum = std::accumulate(axis.begin(), axis.end(), 0.0);
-        float center = sum / axis.size();
-
-        /** add center to axis */
-        axis.push_back(center);
-
-        /** sort axis */
-        std::sort(axis.begin(), axis.end());
-
-        /** query index of emplaced center */
-        int splitIndex = queryIndex(axis, center);
+        int index = (int)axisVector.size()/2;
 
         /** split at center */
-        std::vector<float> low(axis.begin(), axis.begin() + splitIndex);
-        std::vector<float> high(axis.begin() + splitIndex, axis.end());
+        std::vector<float> minVector(axisVector.begin(), axisVector.begin() + index);
+        std::vector<float> maxVector(axisVector.begin() + index, axisVector.end());
 
-        return {low, high};
+        return { minVector, maxVector };
     }
 
-    std::vector<Point> estimate(std::vector<Point> &points) {
+    std::vector<Point> segment(std::vector<Point> &points) {
         Timer timer;
-        std::vector<Point> mut_points = points;
+        std::vector<float> xVector;
+        std::vector<float> yVector;
 
-        /** find within-point variance using the centroid */
-        Point centroid = Point::centroid(mut_points);
-        for (auto &point : mut_points) {
-            float distance = centroid.distance(point);
-            point.m_distance.second = distance;
-        }
-        Point::sort(mut_points);
-
-        std::vector<float> x;
-        std::vector<float> y;
-        std::vector<float> dist;
-        for (const auto& point : mut_points){
-            x.push_back(point.m_x);
-            y.push_back(point.m_y);
-            dist.push_back(point.m_distance.second);
+        for (const auto& point : points){
+            xVector.push_back(point.m_x);
+            yVector.push_back(point.m_y);
         }
 
-        /** sort in descending order */
-        //std::sort(x.begin(), x.end(), std::greater<>());
+        /** rationalize output for analysis */
+        std::sort(xVector.begin(), xVector.end());
+        std::sort(yVector.begin(), yVector.end());
 
-        /** Clip at axis cliffs */
-        std::pair<std::vector<float>, std::vector<float>> xSplit = splitAxis(x);
-        std::pair<std::vector<float>, std::vector<float>> ySplit = splitAxis(y);
-        float xMinClip = elbow::find(xSplit.first);
-        float xMaxClip = elbow::find(xSplit.second);
-        float yMinClip = elbow::find(ySplit.first);
-        float yMaxClip = elbow::find(ySplit.second);
-        float distClip = elbow::find(y);
+        /** find edges and segment */
+        std::pair<std::vector<float>, std::vector<float>> xVectors = split(xVector);
+        std::pair<std::vector<float>, std::vector<float>> yVectors = split(yVector);
 
-        /** region of interest boundaries */
-        std::cout << "x min: " << xMinClip << " --- " << "x max: " << xMaxClip << std::endl;
-        std::cout << "y min: " << yMinClip << " --- " << "y max: " << yMaxClip << std::endl;
-        std::cout << "max dist: " << distClip << yMaxClip << std::endl;
+        std::vector<float> xMinVector = descend(xVectors.first);
+        std::vector<float> xMaxVector = descend(xVectors.second);
+        std::vector<float> yMinVector = descend(yVectors.first);
+        std::vector<float> yMaxVector = descend(yVectors.second);
+
+        const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
+        const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
+        const std::string yMin = io::pwd() + "/build/bin/yMin.csv";
+        const std::string yMax = io::pwd() + "/build/bin/yMax.csv";
+        io::write_val(xMinVector, xMin);
+        io::write_val(xMaxVector, xMax);
+        io::write_val(yMinVector, yMin);
+        io::write_val(yMaxVector, yMax);
+
+        // float xMinEdge = elbow::find(xVectors.first);
+        // float xMaxEdge = elbow::find(xVectors.second);
+        // float yMinEdge = elbow::find(yVectors.first);
+        // float yMaxEdge = elbow::find(yVectors.second);
+
+        // /** region of interest boundaries */
+        // std::cout << "x min: " << xMinEdge << " --- " << "x max: " << xMaxEdge << std::endl;
+        // std::cout << "y min: " << yMinEdge << " --- " << "y max: " << yMaxEdge << std::endl;
 
         /** use the distance boundary as clipping criteria */
-        std::vector<Point> area;
-        for (const auto& point : mut_points){
-            if(point.m_distance.second < distClip){
-                area.push_back(point);
-            }
-        }
+        std::vector<Point> context;
 
-        /** resources for external LDA analysis */
-        io::write_points_2d(mut_points);
-        io::write_axis(xSplit.first);
-        io::write_ply_2d(area);
-
-        return area;
+        return context;
     }
 }
 #endif /* AREA_H */

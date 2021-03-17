@@ -1,11 +1,10 @@
 #include "iqr.h"
 #include "timer.h"
 #include "logger.h"
-#include "io.h"
 
-/** inter quartile range **/
 const float IQR = 1.5;
 
+/** remove outliers using the inter quartile range of normal distribution **/
 std::vector<Point> iqr::denoise(std::vector<Point> points)
 {
     Timer timer;
@@ -34,10 +33,7 @@ std::vector<Point> iqr::denoise(std::vector<Point> points)
             reject++;
         }
     }
-    // io::dist(m_points, "./build/noisy.csv");
     points.resize(points.size() - reject);
-    // io::dist(m_points, "./build/denoised.csv");
-
     LOG(INFO) << timer.getDuration() << " ms: outlier removal runtime";
 
     return points;
