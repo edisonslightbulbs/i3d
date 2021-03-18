@@ -46,24 +46,19 @@ namespace scalpel {
         std::pair<std::vector<float>, std::vector<float>> xVectors = split(xVector);
         std::pair<std::vector<float>, std::vector<float>> yVectors = split(yVector);
 
-        /** secondDerivative edges */
-        float xMaxEdge = elbow::analyzeAxis(xVectors.second);
-        //float xMinEdge = slope::largest(xVectors.first);
-
-        // float yMinEdge = slope::largest(yVectors.first);
-        // float yMaxEdge = slope::largest(yVectors.second);
-
         /** edge boundaries */
-        //std::cout << "x max: " << xMaxEdge << std::endl;
-        //std::cout << "x min: " << xMinEdge << " --- " << "x max: " << xMaxEdge << std::endl;
-        // std::cout << "y min: " << yMinEdge << " --- " << "y max: " << yMaxEdge << std::endl;
+        float xMinEdge = elbow::analyzeAxis(xVectors.first);
+        float xMaxEdge = elbow::analyzeAxis(xVectors.second);
+        float yMinEdge = elbow::analyzeAxis(yVectors.first);
+        float yMaxEdge = elbow::analyzeAxis(yVectors.second);
 
-        //io::write_ply(points);
 
         std::vector<Point> context;
         for (auto& point : points){
-            if (point.m_x < xMaxEdge){
-                context.push_back(point);
+            if (point.m_x < xMaxEdge && point.m_x > xMinEdge){
+                if (point.m_y < yMaxEdge && point.m_y > yMinEdge) {
+                    context.push_back(point);
+                }
             }
         }
         io::write_ply(context);
