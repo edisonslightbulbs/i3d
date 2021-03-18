@@ -8,7 +8,7 @@
 
 #include "point.h"
 #include "io.h"
-#include "slope.h"
+#include "elbow.h"
 
 namespace scalpel {
 
@@ -18,7 +18,7 @@ namespace scalpel {
     }
 
     std::pair<std::vector<float>, std::vector<float>> split(std::vector<float> axisVector){
-        /** find axis center */
+        /** secondDerivative axis center */
         int index = (int)axisVector.size()/2;
 
         /** split at center */
@@ -46,9 +46,9 @@ namespace scalpel {
         std::pair<std::vector<float>, std::vector<float>> xVectors = split(xVector);
         std::pair<std::vector<float>, std::vector<float>> yVectors = split(yVector);
 
-        /** find edges */
+        /** secondDerivative edges */
+        float xMaxEdge = elbow::analyzeAxis(xVectors.second);
         //float xMinEdge = slope::largest(xVectors.first);
-         float xMaxEdge = slope::largest(xVectors.second);
 
         // float yMinEdge = slope::largest(yVectors.first);
         // float yMaxEdge = slope::largest(yVectors.second);
