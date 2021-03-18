@@ -31,8 +31,8 @@ namespace elbow {
         // const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
         // io::write_val(x, xMax);
 
-         const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
-         io::write_val(x, xMin);
+         // const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
+         // io::write_val(x, xMin);
 
         // const std::string yMax = io::pwd() + "/build/bin/yMax.csv";
         // io::write_val(x, yMax);
@@ -64,9 +64,9 @@ namespace elbow {
         float elbow = secondDerivative(derivatives);
         it = derivativeMap.find(elbow);
 
-        std::cout << "  max value: " << *std::max_element(x.begin(), x.end()) << std::endl;
-        std::cout << "  min value: " << *std::min_element(x.begin(), x.end()) << std::endl;
-        std::cout << "elbow value: " << it->second << std::endl;
+        // std::cout << "  max value: " << *std::max_element(x.begin(), x.end()) << std::endl;
+        // std::cout << "  min value: " << *std::min_element(x.begin(), x.end()) << std::endl;
+        // std::cout << "elbow value: " << it->second << std::endl;
 
         return it->second;
     }
