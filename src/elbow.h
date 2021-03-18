@@ -14,8 +14,9 @@ namespace elbow {
         /** sort in descending order */
         std::sort(x.begin(), x.end(), std::greater<>());
 
-        /** secant-line hyper-parameter */
-        const int SIZE_OF_SECANT_LINE = (int)x.size() / 100;
+        /** secant-line hyper-parameter, n.b., longer secant line is
+         * more forgiving a shorter secant line is less forgiving */
+        const int SIZE_OF_SECANT_LINE = (int)x.size() / 40;
 
         /** find max rate of change  */
         float yVal = 0;
@@ -27,10 +28,11 @@ namespace elbow {
                 slope = roc;
             }
         }
-        const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
-        io::write_val(x, xMax);
-        // const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
-        // io::write_val(x, xMin);
+        // const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
+        // io::write_val(x, xMax);
+
+         const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
+         io::write_val(x, xMin);
 
         // const std::string yMax = io::pwd() + "/build/bin/yMax.csv";
         // io::write_val(x, yMax);
