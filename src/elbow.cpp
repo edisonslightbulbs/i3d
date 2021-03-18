@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include "point.h"
 #include "elbow.h"
 #include "logger.h"
 #include "timer.h"
@@ -10,6 +9,7 @@ float elbow::find(std::vector<float>& x)
 {
     Timer timer;
     /** sort in descending order */
+    std::sort(x.begin(), x.end(), std::greater<>());
 
     /** evaluate successive angular distances */
     std::vector<std::pair<float, float>> angles;

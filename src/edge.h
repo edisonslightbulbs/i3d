@@ -1,5 +1,5 @@
-#ifndef AREA_H
-#define AREA_H
+#ifndef EDGE_H
+#define EDGE_H
 
 #include <vector>
 #include <cmath>
@@ -8,8 +8,9 @@
 
 #include "point.h"
 #include "io.h"
+#include "slope.h"
 
-namespace roi {
+namespace edge {
 
     std::vector<float> descend (std::vector<float> axisVector){
         std::sort(axisVector.begin(), axisVector.end(), std::greater<>());
@@ -37,35 +38,23 @@ namespace roi {
             yVector.push_back(point.m_y);
         }
 
-        /** rationalize output for analysis */
+        /** sort in ascending order */
         std::sort(xVector.begin(), xVector.end());
         std::sort(yVector.begin(), yVector.end());
 
-        /** find edges and segment */
+        /** split at axis means*/
         std::pair<std::vector<float>, std::vector<float>> xVectors = split(xVector);
         std::pair<std::vector<float>, std::vector<float>> yVectors = split(yVector);
 
-        std::vector<float> xMinVector = descend(xVectors.first);
-        std::vector<float> xMaxVector = descend(xVectors.second);
-        std::vector<float> yMinVector = descend(yVectors.first);
-        std::vector<float> yMaxVector = descend(yVectors.second);
+        /** find edges */
+        float xMaxEdge = slope::largest(xVectors.second);
+        //float xMinEdge = slope::largest(xVectors.first);
+        // float yMaxEdge = slope::largest(yVectors.second);
+        // float yMinEdge = slope::largest(yVectors.first);
 
-        const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
-        const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
-        const std::string yMin = io::pwd() + "/build/bin/yMin.csv";
-        const std::string yMax = io::pwd() + "/build/bin/yMax.csv";
-        io::write_val(xMinVector, xMin);
-        io::write_val(xMaxVector, xMax);
-        io::write_val(yMinVector, yMin);
-        io::write_val(yMaxVector, yMax);
-
-        // float xMinEdge = elbow::find(xVectors.first);
-        // float xMaxEdge = elbow::find(xVectors.second);
-        // float yMinEdge = elbow::find(yVectors.first);
-        // float yMaxEdge = elbow::find(yVectors.second);
-
-        // /** region of interest boundaries */
-        // std::cout << "x min: " << xMinEdge << " --- " << "x max: " << xMaxEdge << std::endl;
+        /** edge boundaries */
+        std::cout << "x max: " << xMaxEdge << std::endl;
+        //std::cout << "x min: " << xMinEdge << " --- " << "x max: " << xMaxEdge << std::endl;
         // std::cout << "y min: " << yMinEdge << " --- " << "y max: " << yMaxEdge << std::endl;
 
         /** use the distance boundary as clipping criteria */
@@ -74,4 +63,17 @@ namespace roi {
         return context;
     }
 }
-#endif /* AREA_H */
+#endif /* EDGE_H */
+
+// std::vector<float> xMinVector = descend(xVectors.first);
+// std::vector<float> xMaxVector = descend(xVectors.second);
+// std::vector<float> yMinVector = descend(yVectors.first);
+// std::vector<float> yMaxVector = descend(yVectors.second);
+// const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
+// const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
+// const std::string yMin = io::pwd() + "/build/bin/yMin.csv";
+// const std::string yMax = io::pwd() + "/build/bin/yMax.csv";
+// io::write_val(xMinVector, xMin);
+// io::write_val(xMaxVector, xMax);
+// io::write_val(yMinVector, yMin);
+// io::write_val(yMaxVector, yMax);
