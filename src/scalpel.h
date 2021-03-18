@@ -53,14 +53,15 @@ namespace scalpel {
         float yMaxEdge = elbow::analyzeAxis(yVectors.second);
 
 
-        std::vector<Point> context;
+        std::vector<Point> proposal;
         for (auto& point : points){
             if (point.m_x < xMaxEdge && point.m_x > xMinEdge){
                 if (point.m_y < yMaxEdge && point.m_y > yMinEdge) {
-                    context.push_back(point);
+                    proposal.push_back(point);
                 }
             }
         }
+        std::vector<Point> context = lda::analyze(proposal);
         io::write_ply(context);
 
 
