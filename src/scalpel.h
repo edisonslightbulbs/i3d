@@ -10,7 +10,7 @@
 #include "io.h"
 #include "slope.h"
 
-namespace edge {
+namespace scalpel {
 
     std::vector<float> descend (std::vector<float> axisVector){
         std::sort(axisVector.begin(), axisVector.end(), std::greater<>());
@@ -28,7 +28,7 @@ namespace edge {
         return { minVector, maxVector };
     }
 
-    std::vector<Point> segment(std::vector<Point> &points) {
+    std::vector<Point> segment(const std::vector<Point> &points) {
         Timer timer;
         std::vector<float> xVector;
         std::vector<float> yVector;
@@ -47,33 +47,31 @@ namespace edge {
         std::pair<std::vector<float>, std::vector<float>> yVectors = split(yVector);
 
         /** find edges */
-        float xMaxEdge = slope::largest(xVectors.second);
         //float xMinEdge = slope::largest(xVectors.first);
-        // float yMaxEdge = slope::largest(yVectors.second);
+         float xMaxEdge = slope::largest(xVectors.second);
+
         // float yMinEdge = slope::largest(yVectors.first);
+        // float yMaxEdge = slope::largest(yVectors.second);
 
         /** edge boundaries */
-        std::cout << "x max: " << xMaxEdge << std::endl;
+        //std::cout << "x max: " << xMaxEdge << std::endl;
         //std::cout << "x min: " << xMinEdge << " --- " << "x max: " << xMaxEdge << std::endl;
         // std::cout << "y min: " << yMinEdge << " --- " << "y max: " << yMaxEdge << std::endl;
 
-        /** use the distance boundary as clipping criteria */
+        //io::write_ply(points);
+
         std::vector<Point> context;
+        for (auto& point : points){
+            if (point.m_x < xMaxEdge){
+                context.push_back(point);
+            }
+        }
+        io::write_ply(context);
+
+
+        /** use the distance boundary as clipping criteria */
 
         return context;
     }
 }
 #endif /* EDGE_H */
-
-// std::vector<float> xMinVector = descend(xVectors.first);
-// std::vector<float> xMaxVector = descend(xVectors.second);
-// std::vector<float> yMinVector = descend(yVectors.first);
-// std::vector<float> yMaxVector = descend(yVectors.second);
-// const std::string xMin = io::pwd() + "/build/bin/xMin.csv";
-// const std::string xMax = io::pwd() + "/build/bin/xMax.csv";
-// const std::string yMin = io::pwd() + "/build/bin/yMin.csv";
-// const std::string yMax = io::pwd() + "/build/bin/yMax.csv";
-// io::write_val(xMinVector, xMin);
-// io::write_val(xMaxVector, xMax);
-// io::write_val(yMinVector, yMin);
-// io::write_val(yMaxVector, yMax);
