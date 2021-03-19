@@ -12,7 +12,8 @@ float elbow::secondDerivative(std::vector<float>& x)
 
     /** secant-line hyper-parameter, n.b., longer secant line is
      * more forgiving a shorter secant line is less forgiving */
-    const int SIZE_OF_SECANT_LINE = (int)x.size() / 40;
+    //const int SIZE_OF_SECANT_LINE = (int)x.size() / 60;
+    const int SIZE_OF_SECANT_LINE = 20;
 
     /** find max rate of change  */
     float yVal = 0;
