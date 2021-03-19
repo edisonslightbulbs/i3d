@@ -3,6 +3,8 @@
 #include "elbow.h"
 #include "lda.h"
 #include "scalpel.h"
+#include "timer.h"
+#include "logger.h"
 
 namespace scalpel {
 
@@ -28,6 +30,7 @@ std::pair<std::vector<float>, std::vector<float>> split(
 
 std::vector<Point> segment(const std::vector<Point>& points)
 {
+    Timer timer;
     std::vector<float> xVector;
     std::vector<float> yVector;
 
@@ -61,6 +64,7 @@ std::vector<Point> segment(const std::vector<Point>& points)
     }
     /** remove ``residual'' outliers in final context segment */
     std::vector<Point> context = lda::analyze(proposal);
+    LOG(INFO) << timer.getDuration() << " ms: final segmentation";
 
     return context;
 }
