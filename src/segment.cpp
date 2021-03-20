@@ -1,21 +1,21 @@
-#include <vector>
-#include "outliers.h"
 #include "segment.h"
-#include "timer.h"
 #include "logger.h"
-#include "edge.h"
+#include "outliers.h"
+#include "polygon.h"
 #include "scan.h"
-
+#include "timer.h"
 
 std::vector<Point> segment::partition(std::vector<Point>& points)
 {
     Timer timer;
-    /** partition proposal */
-    //std::vector<Point> proposal = edge::find(points);
-    std::vector<Point> proposal = scan::density(points);
+    /** coarse segmentation  */
+    std::vector<Point> partition = polygon::fit(points);
+    std::vector<Point> proposal = outliers::remove(partition);
 
-    /** remove ``residual'' outliers in final context segment */
-    std::vector<Point> context = outliers::remove(proposal);
+    /** final proposal */
+    //std::vector<Point> context = scan::density(proposal);
+
     LOG(INFO) << timer.getDuration() << " ms: final segmentation";
-    return context;
+    //return context;
+    return proposal;
 }
