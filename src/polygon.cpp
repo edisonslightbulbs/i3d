@@ -41,12 +41,10 @@ std::vector<Point> polygon::fit(std::vector<Point>& points)
             || point.m_y > yMax) {
             continue;
         }
-
-        proposal.push_back(point);
-        // if(!inside(points, point, xMax, xMin, yMax, yMin)){
-        // } else {
-        //     proposal.push_back(point);
-        // }
+        if(!inside(points, point, xMax, xMin, yMax, yMin)){
+        } else {
+            proposal.push_back(point);
+        }
     }
     return proposal;
 }
