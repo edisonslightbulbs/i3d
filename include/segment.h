@@ -5,6 +5,6 @@
 #include <vector>
 
 namespace segment {
-std::vector<Point> partition(std::vector<Point>& points);
+std::vector<Point> cut(std::vector<Point>& points);
 }
 #endif /* SEGMENT_H */
