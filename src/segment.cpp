@@ -1,21 +1,26 @@
 #include "segment.h"
 #include "logger.h"
+#include "edge.h"
 #include "outliers.h"
 #include "polygon.h"
 #include "scan.h"
 #include "timer.h"
 
-std::vector<Point> segment::partition(std::vector<Point>& points)
+std::vector<Point> segment::cut(std::vector<Point>& points)
 {
     Timer timer;
-    /** coarse segmentation  */
-    std::vector<Point> partition = polygon::fit(points);
-    std::vector<Point> proposal = outliers::remove(partition);
+    /** final segmentation: extrapolating 'vanishing' depth values,  very fast [ robust ]  */
+    std::vector<Point> proposal = edge::detect(points);
 
-    /** final proposal */
-    //std::vector<Point> context = scan::density(proposal);
+    /** final segmentation:  jordan curve-based, slow [ unreliable ] */
+    //std::vector<Point> proposal = polygon::fit(points);
+
+    /** final segmentation: dbscan-based, slow [ robust ] */
+    //std::vector<Point> proposal = scan::density(proposal);
+
+    /** removing floating points */
+    std::vector<Point> denoised = outliers::remove(points);
 
     LOG(INFO) << timer.getDuration() << " ms: final segmentation";
-    //return context;
-    return proposal;
+    return denoised;
 }
