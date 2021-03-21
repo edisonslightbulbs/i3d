@@ -19,7 +19,7 @@ std::vector<Point> segment::cut(std::vector<Point>& points)
     //std::vector<Point> proposal = scan::density(proposal);
 
     /** removing floating points */
-    std::vector<Point> denoised = outliers::remove(points);
+    std::vector<Point> denoised = outliers::remove(proposal);
 
     LOG(INFO) << timer.getDuration() << " ms: final segmentation";
     return denoised;
