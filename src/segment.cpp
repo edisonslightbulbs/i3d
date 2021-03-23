@@ -17,11 +17,11 @@ std::vector<Point> segment::cut(std::vector<Point>& points)
     std::vector<Point> denoised = outliers::remove(proposal);
 
     /** final segmentation: dbscan-based, slow [ robust ] */
-    std::vector<Point> clusters = scan::density(proposal);
+    //std::vector<Point> clusters = scan::density(proposal);
 
     /** final segmentation:  jordan curve-based, slow [ unreliable ] */
     // std::vector<Point> proposal = polygon::fit(points);
 
     LOG(INFO) << timer.getDuration() << " ms: final segmentation";
-    return clusters;
+    return denoised;
 }
