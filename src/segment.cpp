@@ -1,27 +1,34 @@
 #include "segment.h"
 #include "edge.h"
-#include "logger.h"
 #include "outliers.h"
-#include "polygon.h"
-#include "scan.h"
+#include "svd.h"
 #include "timer.h"
 
 std::vector<Point> segment::cut(std::vector<Point>& points)
 {
     Timer timer;
-    /** final segmentation: extrapolating 'vanishing' depth values,  very fast [
-     * robust ]  */
-    std::vector<Point> proposal = edge::detect(points);
+    float raw = points.size();
 
-    /** removing floating points */
-    std::vector<Point> denoised = outliers::remove(proposal);
+    /** remove outliers*/
+    std::vector<Point> filtered = outliers::remove(points);
+    std::string filterTime = timer.getDuration();
 
-    /** final segmentation: dbscan-based, slow [ robust ] */
-    //std::vector<Point> clusters = scan::density(proposal);
+    /** grow course segment  */
+    std::vector<Point> region = svd::compute(filtered);
+    std::string growTime = timer.getDuration();
 
-    /** final segmentation:  jordan curve-based, slow [ unreliable ] */
-    // std::vector<Point> proposal = polygon::fit(points);
+    /** final segmentation: extrapolating 'vanishing' depth values */
+    std::vector<Point> proposal = edge::detect(region);
 
-    LOG(INFO) << timer.getDuration() << " ms: final segmentation";
-    return denoised;
+    /** removing straggling points */
+    std::vector<Point> finalSeg = outliers::remove(proposal);
+    std::string finalSegTime = timer.getDuration();
+
+    /** log performance */
+    // io::performance(raw, filtered.size(), filterTime, region.size(),
+    //                growTime, finalSeg.size(), finalSegTime,
+    //                timer.getDuration());
+
+    /** return segment of tabletop interaction context*/
+    return finalSeg;
 }
