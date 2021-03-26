@@ -1,6 +1,7 @@
 #include "edge.h"
 
 const float VANISHING_RANGE = 8;
+
 std::vector<Point> edge::detect(std::vector<Point>& points)
 {
     std::vector<Point> proposal;
