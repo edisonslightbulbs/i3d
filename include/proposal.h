@@ -11,13 +11,16 @@ namespace proposal {
  * grow
  *   Grows proposal of tabletop interaction context.
  *
- * @param svd
+ * @param solution
  *   Computed SVD (singular value decomposition).
  *
  * @retval
  *    Coarse segment/proposal region of tabletop interaction context.
  */
-std::vector<Point> grow(const std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd>& svd, std::vector<Point>& points);
+std::vector<Point> grow(
+    const std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd>&
+        solution,
+    std::vector<Point>& points);
 }
 
 #endif /* PROPOSAL_H */
