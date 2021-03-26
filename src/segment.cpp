@@ -1,6 +1,10 @@
-#include "segment.h"
+#include <Eigen/Dense>
+#include <utility>
+
 #include "edge.h"
 #include "outliers.h"
+#include "proposal.h"
+#include "segment.h"
 #include "svd.h"
 #include "timer.h"
 
@@ -9,26 +13,30 @@ std::vector<Point> segment::cut(std::vector<Point>& points)
     Timer timer;
     float raw = points.size();
 
-    /** remove outliers*/
+    /** filter out outliers */
     std::vector<Point> filtered = outliers::remove(points);
     std::string filterTime = timer.getDuration();
 
-    /** grow course segment  */
-    std::vector<Point> region = svd::compute(filtered);
+    /** compute svd */
+    std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd> solution;
+    solution = svd::compute(filtered);
+
+    /** grow course segment using svd solution */
+    std::vector<Point> region = proposal::grow(solution, filtered);
     std::string growTime = timer.getDuration();
 
-    /** final segmentation: extrapolating 'vanishing' depth values */
-    std::vector<Point> proposal = edge::detect(region);
+    /** do final segmentation */
+    std::vector<Point> finalSeg = edge::detect(region);
 
-    /** removing straggling points */
-    std::vector<Point> finalSeg = outliers::remove(proposal);
+    /** remove straggling points */
+    std::vector<Point> denoisedFinalSeg = outliers::remove(finalSeg);
     std::string finalSegTime = timer.getDuration();
 
-    /** log performance */
-    // io::performance(raw, filtered.size(), filterTime, region.size(),
-    //                growTime, finalSeg.size(), finalSegTime,
-    //                timer.getDuration());
-
-    /** return segment of tabletop interaction context*/
-    return finalSeg;
+    /** return final segment of tabletop interaction context*/
+    return denoisedFinalSeg;
 }
+
+/** log performance */
+// io::performance(raw, filtered.size(), filterTime, region.size(),
+//                growTime, finalSeg.size(), finalSegTime,
+//                timer.getDuration());
