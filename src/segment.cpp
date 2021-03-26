@@ -1,7 +1,9 @@
 #include <Eigen/Dense>
 #include <utility>
 
+#include "dbscan.h"
 #include "edge.h"
+#include "jct.h"
 #include "outliers.h"
 #include "proposal.h"
 #include "segment.h"
@@ -25,8 +27,15 @@ std::vector<Point> segment::cut(std::vector<Point>& points)
     std::vector<Point> region = proposal::grow(solution, filtered);
     std::string growTime = timer.getDuration();
 
-    /** do final segmentation */
+    /** option 1 (robust and fast): do final segmentation using vanishing points
+     */
     std::vector<Point> finalSeg = edge::detect(region);
+
+    // /** option 2 (moderately robust & slow): do final segmentation using
+    // dbscan */ std::vector<Point> finalSeg = dbscan::run(region);
+
+    // /** option 3 (not robust & slow): do final segmentation using JCT (Jordan
+    // curve theorem) */ std::vector<Point> finalSeg = jct::polygon(region);
 
     /** remove straggling points */
     std::vector<Point> denoisedFinalSeg = outliers::remove(finalSeg);
