@@ -2,7 +2,6 @@
 #include <utility>
 
 #include "dbscan.h"
-#include "edge.h"
 #include "jct.h"
 #include "outliers.h"
 #include "proposal.h"
@@ -23,29 +22,24 @@ std::vector<Point> segment::cut(std::vector<Point>& points)
     std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd> solution;
     solution = svd::compute(filtered);
 
-    /** grow course segment using svd solution */
-    std::vector<Point> region = proposal::grow(solution, filtered);
-    std::string growTime = timer.getDuration();
+    /** coarse segment using svd solution */
+    std::vector<Point> coarseSeg = proposal::grow(solution, filtered);
 
-    /** option 1 (robust and fast): do final segmentation using vanishing points
-     */
-    std::vector<Point> finalSeg = edge::detect(region);
+    /** deprecated: coarse segment using dbscan */
+    // std::vector<Point> finalSeg = dbscan::run(filtered);
 
-    // /** option 2 (moderately robust & slow): do final segmentation using
-    // dbscan */ std::vector<Point> finalSeg = dbscan::run(region);
-
-    // /** option 3 (not robust & slow): do final segmentation using JCT (Jordan
-    // curve theorem) */ std::vector<Point> finalSeg = jct::polygon(region);
+    /** deprecated: coarse segment using jordan curve theorem: */
+    // std::vector<Point> finalSeg = jct::polygon(filtered);
+    std::string coarseSegTime = timer.getDuration();
 
     /** remove straggling points */
-    std::vector<Point> denoisedFinalSeg = outliers::remove(finalSeg);
+    std::vector<Point> finalSeg = outliers::remove(coarseSeg);
     std::string finalSegTime = timer.getDuration();
 
     /** return final segment of tabletop interaction context*/
-    return denoisedFinalSeg;
+    return finalSeg;
 }
 
 /** log performance */
-// io::performance(raw, filtered.size(), filterTime, region.size(),
-//                growTime, finalSeg.size(), finalSegTime,
-//                timer.getDuration());
+// io::performance(raw, filtered.size(), filterTime, coarseSeg.size(),
+// coarseSegTime, finalSeg.size(), finalSegTime, timer.getDuration());
