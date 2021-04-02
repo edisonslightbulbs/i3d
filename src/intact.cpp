@@ -1,128 +1,87 @@
 #include <Eigen/Dense>
-#include <utility>
-#include <mutex>
 #include <atomic>
+#include <utility>
 
-#include "dbscan.h"
-#include "jct.h"
-#include "outliers.h"
-#include "io.h"
 #include "grow.h"
 #include "intact.h"
-#include "svd.h"
+#include "io.h"
 #include "kinect.h"
-#include "timer.h"
+#include "outliers.h"
+#include "svd.h"
 #include "viewer.h"
 
 std::atomic<bool> RUN(true);
 
-std::vector<Point> update(std::vector<Point>& points)
+std::vector<Point> propose(std::vector<Point>& points)
 {
-    //kinect.capture();
-    //kinect.pclImage();
-    float raw = points.size();
-
-    Timer timer;
     /** filter out outliers */
-    std::vector<Point> filtered = outliers::remove(points);
-    std::string filterTime = timer.getDuration();
+    std::vector<Point> denoisedPcl = outliers::filter(points);
 
     /** compute svd */
-    std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd> solution;
-    solution = svd::compute(filtered);
+    std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd> USV;
+    USV = svd::compute(denoisedPcl);
 
-    /** define coarse segment */
-    std::vector<Point> coarseSeg = grow::propose(solution, filtered);
-    std::string coarseSegTime = timer.getDuration();
+    /** coarse segment */
+    std::vector<Point> coarseSeg = grow::propose(USV, denoisedPcl);
 
-    /** deprecated: coarse segment using dbscan */
-    // std::vector<Point> finalSeg = dbscan::run(filtered);
+    /** final segment */
+    std::vector<Point> finalSeg = outliers::filter(coarseSeg);
 
-    /** deprecated: coarse segment using jordan curve theorem: */
-    // std::vector<Point> finalSeg = jct::polygon(filtered);
-
-    /** remove straggling points */
-    std::vector<Point> finalSeg = outliers::remove(coarseSeg);
-    std::string finalSegTime = timer.getDuration();
-
-    /** output final segment of tabletop interaction context*/
-    // io::ply(kinect.m_points, finalSeg);
+    /** final interaction context segment */
     return finalSeg;
 }
 
-/** log performance */
-// io::performance(raw, filtered.size(), filterTime, coarseSeg.size(),
-// coarseSegTime, finalSeg.size(), finalSegTime, timer.getDuration());
-
-void intact::segment(std::mutex& m, Kinect& kinect, const int& numPoints,
-                std::shared_ptr<std::vector<float>>& sptr_points, std::shared_ptr<std::pair<Point, Point>>& sptr_threshold)
+void intact::segment(Kinect& kinect)
 {
-    /** capture once and hand over capturing task to renderer */
-    kinect.capture();
-    kinect.pclImage(sptr_points);
+    kinect.getPclImage();
+    while (RUN) {
 
-    while(RUN){
-        /** capture using kinect */
-        std::vector<Point> pcl;
+        std::vector<float> pcl;
+        pcl = kinect.getPcl();
 
-        std::vector<float> raw;
-        if (m.try_lock()) {
-            kinect.capture();
-            kinect.pclImage(sptr_points);
-            raw = *sptr_points;
-            m.unlock();
-        }
-
-        /** parse point cloud into std::vector<Point> */
-        int width = k4a_image_get_width_pixels(kinect.m_pclImage);
-        int height = k4a_image_get_height_pixels(kinect.m_pclImage);
-
-        for (int i = 0; i < width * height; i++) {
-            if (raw[3 * i + 0] == 0  || raw[3 * i + 1] == 0
-                || raw[3 * i + 2] == 0){
+        /** parse point cloud data into Point type definitions */
+        std::vector<Point> pclPoints;
+        for (int i = 0; i < kinect.getNumPoints(); i++) { // resource race
+            if (pcl[3 * i + 0] == 0 || pcl[3 * i + 1] == 0
+                || pcl[3 * i + 2] == 0) {
                 continue;
             }
-         float x = raw[3 * i + 0];
-         float y = raw[3 * i + 1];
-         float z = raw[3 * i + 2];
-         Point point(x, y, z);
-         pcl.push_back(point);
+            float x = pcl[3 * i + 0];
+            float y = pcl[3 * i + 1];
+            float z = pcl[3 * i + 2];
+            Point point(x, y, z);
+            pclPoints.push_back(point);
         }
 
         /** segment tabletop interaction context */
-        std::vector<Point> points = update(pcl);
-        std::vector<float> x;
-        std::vector<float> y;
-        std::vector<float> z;
-        for (const auto& point : points) {
-            x.push_back(point.m_x);
-            y.push_back(point.m_y);
-            z.push_back(point.m_z);
+        std::vector<Point> context = propose(pclPoints);
+        io::ply(context);
+
+        /** query upper and lower constraints */
+        std::vector<float> X;
+        std::vector<float> Y;
+        std::vector<float> Z;
+        for (auto& point : context) {
+            X.push_back(point.m_x);
+            Y.push_back(point.m_y);
+            Z.push_back(point.m_z);
         }
-        float xMax = *std::max_element(x.begin(), x.end());
-        float xMin = *std::min_element(x.begin(), x.end());
-        float yMax = *std::max_element(y.begin(), y.end());
-        float yMin = *std::min_element(y.begin(), y.end());
-        float zMax = *std::max_element(z.begin(), z.end());
-        float zMin = *std::min_element(z.begin(), z.end());
+        float xMax = *std::max_element(X.begin(), X.end());
+        float xMin = *std::min_element(X.begin(), X.end());
+        float yMax = *std::max_element(Y.begin(), Y.end());
+        float yMin = *std::min_element(Y.begin(), Y.end());
+        float zMax = *std::max_element(Z.begin(), Z.end());
+        float zMin = *std::min_element(Z.begin(), Z.end());
 
         Point min(xMin, yMin, zMin);
         Point max(xMax, yMax, zMax);
 
-        /** segment tabletop interaction context */
-        if (m.try_lock()) {
-            sptr_threshold->first = min;
-            sptr_threshold->second = max;
-            m.unlock();
-        }
+        /** update constraints of tabletop interaction context*/
+        kinect.setContext({ min, max });
 
-        /** update tabletop interaction context x, y, z every sec */
-        usleep(1000000);
+        /** update interaction context constraints every second */
+        usleep(3000000);
     }
 }
 
-void intact::render(std::mutex& m, Kinect kinect, int numPoints,
-                    std::shared_ptr<std::vector<float>>& sptr_points, std::shared_ptr<std::pair<Point, Point>>& sptr_threshold){
-
-    viewer::draw(m, std::move(kinect), numPoints, sptr_points, sptr_threshold);
-}
+void intact::render(Kinect& kinect) { viewer::draw(kinect); }
