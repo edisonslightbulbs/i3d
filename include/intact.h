@@ -1,12 +1,12 @@
 #ifndef INTACT_H
 #define INTACT_H
 
-#include <vector>
 #include <memory>
 #include <mutex>
+#include <vector>
 
-#include "point.h"
 #include "kinect.h"
+#include "point.h"
 
 namespace intact {
 /**
@@ -19,10 +19,8 @@ namespace intact {
  * @retval
  *    Segment of tabletop interaction context
  */
-    void segment(std::mutex& m, Kinect& kinect, const int& numPoints,
-                         std::shared_ptr<std::vector<float>>& sptr_points, std::shared_ptr<std::pair<Point, Point>>& sptr_threshold);
+void segment(Kinect& kinect);
 
-    void render(std::mutex& m, Kinect kinect, int numPoints,
-                std::shared_ptr<std::vector<float>>& sptr_points, std::shared_ptr<std::pair<Point, Point>>& sptr_threshold);
+void render(Kinect& kinect);
 }
 #endif /* INTACT_H */
