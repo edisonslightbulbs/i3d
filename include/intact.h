@@ -19,8 +19,8 @@ namespace intact {
  * @retval
  *    Segment of tabletop interaction context
  */
-void segment(Kinect& kinect);
+void segment(std::shared_ptr<Kinect>& sptr_kinect);
 
-void render(Kinect& kinect);
+void render(std::shared_ptr<Kinect>& sptr_kinect);
 }
 #endif /* INTACT_H */
