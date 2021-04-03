@@ -37,11 +37,9 @@ std::vector<Point> retrieve(std::vector<Point>& points)
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->getFrame();
-
     while (RUN) {
         std::vector<float> pcl;
-        pcl = *sptr_kinect
-                   ->getPcl(); // todo: (3/4) resource race handled correctly?
+        pcl = *sptr_kinect->getPcl();
 
         /** parse point cloud data into Point type definitions */
         std::vector<Point> pclPoints;
@@ -81,8 +79,7 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
         Point max(xMax, yMax, zMax);
 
         /** update constraints of tabletop interaction context*/
-        sptr_kinect->defineContext(
-            { min, max }); // todo: (4/4) resource race handled correctly?
+        sptr_kinect->defineContext({ min, max });
 
         /** update interaction context constraints every second */
         std::this_thread::sleep_for(std::chrono::seconds(2));
