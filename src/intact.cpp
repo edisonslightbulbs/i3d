@@ -1,5 +1,8 @@
 #include <Eigen/Dense>
 #include <atomic>
+#include <chrono>
+#include <iostream>
+#include <thread>
 #include <utility>
 
 #include "grow.h"
@@ -33,11 +36,9 @@ std::vector<Point> retrieve(std::vector<Point>& points)
 
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
-    sptr_kinect->getCapture();  //  todo: (1/4) resource race handled correctly?
-    sptr_kinect->getPclImage(); // todo: (2/4) resource race handled correctly?
+    sptr_kinect->getFrame();
 
     while (RUN) {
-
         std::vector<float> pcl;
         pcl = *sptr_kinect
                    ->getPcl(); // todo: (3/4) resource race handled correctly?
@@ -80,11 +81,11 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
         Point max(xMax, yMax, zMax);
 
         /** update constraints of tabletop interaction context*/
-        sptr_kinect->setContext(
+        sptr_kinect->defineContext(
             { min, max }); // todo: (4/4) resource race handled correctly?
 
         /** update interaction context constraints every second */
-        usleep(3000000);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
 
