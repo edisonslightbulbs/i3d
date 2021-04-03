@@ -12,7 +12,7 @@
 
 std::atomic<bool> RUN(true);
 
-std::vector<Point> propose(std::vector<Point>& points)
+std::vector<Point> retrieve(std::vector<Point>& points)
 {
     /** filter out outliers */
     std::vector<Point> denoisedPcl = outliers::filter(points);
@@ -31,17 +31,20 @@ std::vector<Point> propose(std::vector<Point>& points)
     return finalSeg;
 }
 
-void intact::segment(Kinect& kinect)
+void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
-    kinect.getPclImage();
+    sptr_kinect->getCapture();  //  todo: (1/4) resource race handled correctly?
+    sptr_kinect->getPclImage(); // todo: (2/4) resource race handled correctly?
+
     while (RUN) {
 
         std::vector<float> pcl;
-        pcl = kinect.getPcl();
+        pcl = *sptr_kinect
+                   ->getPcl(); // todo: (3/4) resource race handled correctly?
 
         /** parse point cloud data into Point type definitions */
         std::vector<Point> pclPoints;
-        for (int i = 0; i < kinect.getNumPoints(); i++) { // resource race
+        for (int i = 0; i < sptr_kinect->getNumPoints(); i++) { // resource race
             if (pcl[3 * i + 0] == 0 || pcl[3 * i + 1] == 0
                 || pcl[3 * i + 2] == 0) {
                 continue;
@@ -54,7 +57,7 @@ void intact::segment(Kinect& kinect)
         }
 
         /** segment tabletop interaction context */
-        std::vector<Point> context = propose(pclPoints);
+        std::vector<Point> context = retrieve(pclPoints);
         io::ply(context);
 
         /** query upper and lower constraints */
@@ -77,11 +80,15 @@ void intact::segment(Kinect& kinect)
         Point max(xMax, yMax, zMax);
 
         /** update constraints of tabletop interaction context*/
-        kinect.setContext({ min, max });
+        sptr_kinect->setContext(
+            { min, max }); // todo: (4/4) resource race handled correctly?
 
         /** update interaction context constraints every second */
         usleep(3000000);
     }
 }
 
-void intact::render(Kinect& kinect) { viewer::draw(kinect); }
+void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
+{
+    viewer::draw(sptr_kinect);
+}
