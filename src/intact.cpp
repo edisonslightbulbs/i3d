@@ -1,5 +1,4 @@
 #include <Eigen/Dense>
-#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -7,13 +6,13 @@
 
 #include "grow.h"
 #include "intact.h"
-#include "io.h"
 #include "kinect.h"
 #include "outliers.h"
 #include "svd.h"
 #include "viewer.h"
 
-std::atomic<bool> RUN(true);
+extern std::mutex SYNCHRONIZE;
+extern std::shared_ptr<bool> RUN_SYSTEM;
 
 std::vector<Point> retrieve(std::vector<Point>& points)
 {
@@ -36,8 +35,9 @@ std::vector<Point> retrieve(std::vector<Point>& points)
 
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
+
     sptr_kinect->getFrame();
-    while (RUN) {
+    while (RUN_SYSTEM) {
         std::vector<float> pcl;
         pcl = *sptr_kinect->getPcl();
 
@@ -57,7 +57,6 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 
         /** segment tabletop interaction context */
         std::vector<Point> context = retrieve(pclPoints);
-        io::ply(context);
 
         /** query upper and lower constraints */
         std::vector<float> X;
