@@ -14,7 +14,7 @@
 extern std::mutex SYNCHRONIZE;
 extern std::shared_ptr<bool> RUN_SYSTEM;
 
-std::vector<Point> retrieve(std::vector<Point>& points)
+std::vector<Point> find(std::vector<Point>& points)
 {
     /** filter out outliers */
     std::vector<Point> denoisedPcl = outliers::filter(points);
@@ -35,11 +35,11 @@ std::vector<Point> retrieve(std::vector<Point>& points)
 
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
+    /** capture point cloud */
+    sptr_kinect->buildPcl();
 
-    sptr_kinect->getFrame();
     while (RUN_SYSTEM) {
-        std::vector<float> pcl;
-        pcl = *sptr_kinect->getPcl();
+        std::vector<float> pcl = *sptr_kinect->getPcl();
 
         /** parse point cloud data into Point type definitions */
         std::vector<Point> pclPoints;
@@ -56,7 +56,7 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
         }
 
         /** segment tabletop interaction context */
-        std::vector<Point> context = retrieve(pclPoints);
+        std::vector<Point> context = find(pclPoints);
 
         /** query upper and lower constraints */
         std::vector<float> X;
