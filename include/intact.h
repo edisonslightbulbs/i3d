@@ -22,5 +22,10 @@ namespace intact {
 void segment(std::shared_ptr<Kinect>& sptr_kinect);
 
 void render(std::shared_ptr<Kinect>& sptr_kinect);
+
+std::pair<Point, Point> queryContextBoundary(std::vector<Point>& context);
+
+std::vector<Point> parse(
+    std::shared_ptr<Kinect>& sptr_kinect, std::vector<float>& pcl);
 }
 #endif /* INTACT_H */
