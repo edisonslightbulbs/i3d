@@ -12,6 +12,10 @@
 #include "viewer.h"
 //#include "io.h"
 
+// extern const int FAST_PCL =  0;
+// extern const int RGB_TO_DEPTH =  1;
+// extern const int DEPTH_TO_RGB =  2;
+
 extern std::mutex SYNCHRONIZE;
 extern std::shared_ptr<bool> RUN_SYSTEM;
 
@@ -90,7 +94,7 @@ std::pair<Point, Point> intact::queryContextBoundary(
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
     /** capture point cloud */
-    sptr_kinect->capturePcl();
+    sptr_kinect->capturePcl(FAST_PCL);
 
     while (RUN_SYSTEM) {
         std::vector<float> pcl = *sptr_kinect->getPcl();
@@ -106,6 +110,9 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 
         /** register interaction context */
         sptr_kinect->setContextBounds(contextBoundary);
+
+        /** get colorized pcl */
+        sptr_kinect->capturePcl(RGB_TO_DEPTH);
 
         /** update interaction context constraints every second */
         std::this_thread::sleep_for(std::chrono::seconds(2));
