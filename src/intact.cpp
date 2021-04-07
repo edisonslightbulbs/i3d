@@ -105,7 +105,7 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
         std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
 
         /** register interaction context */
-        sptr_kinect->defineContext(contextBoundary);
+        sptr_kinect->setContextBounds(contextBoundary);
 
         /** update interaction context constraints every second */
         std::this_thread::sleep_for(std::chrono::seconds(2));
