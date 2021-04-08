@@ -4,19 +4,14 @@
 #include <thread>
 #include <utility>
 
-#include "grow.h"
 #include "intact.h"
+#include "io.h"
 #include "kinect.h"
 #include "outliers.h"
+#include "proposal.h"
 #include "svd.h"
 #include "viewer.h"
-//#include "io.h"
 
-// extern const int FAST_PCL =  0;
-// extern const int RGB_TO_DEPTH =  1;
-// extern const int DEPTH_TO_RGB =  2;
-
-extern std::mutex SYNCHRONIZE;
 extern std::shared_ptr<bool> RUN_SYSTEM;
 
 std::vector<Point> find(std::vector<Point>& points)
@@ -32,7 +27,8 @@ std::vector<Point> find(std::vector<Point>& points)
     USV = svd::compute(denoisedPcl);
 
     /** coarse segment */
-    std::vector<Point> coarseSeg = grow::propose(USV, denoisedPcl);
+    std::vector<Point> coarseSeg = proposal::grow(USV, denoisedPcl);
+    io::ply(coarseSeg);
 
     /** final segment */
     std::vector<Point> finalSeg = outliers::filter(coarseSeg);
@@ -96,27 +92,27 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
     /** capture point cloud */
     sptr_kinect->capturePcl(FAST_PCL);
 
-    while (RUN_SYSTEM) {
-        std::vector<float> pcl = *sptr_kinect->getPcl();
+    // while (RUN_SYSTEM) {
+    std::vector<float> pcl = *sptr_kinect->getPcl();
 
-        /** parse point cloud data into Point type definitions */
-        std::vector<Point> pclPoints = parse(sptr_kinect, pcl);
+    /** parse point cloud data into Point type definitions */
+    std::vector<Point> pclPoints = parse(sptr_kinect, pcl);
 
-        /** segment tabletop interaction context */
-        std::vector<Point> context = find(pclPoints);
+    /** segment tabletop interaction context */
+    std::vector<Point> context = find(pclPoints);
 
-        /** query interaction context boundary */
-        std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
+    // /** query interaction context boundary */
+    // std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
 
-        /** register interaction context */
-        sptr_kinect->setContextBounds(contextBoundary);
+    // /** register interaction context */
+    // sptr_kinect->setContextBounds(contextBoundary);
 
-        /** get colorized pcl */
-        sptr_kinect->capturePcl(RGB_TO_DEPTH);
+    // /** get colorized pcl */
+    // sptr_kinect->capturePcl(RGB_TO_DEPTH);
 
-        /** update interaction context constraints every second */
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-    }
+    // /** update interaction context constraints every second */
+    // std::this_thread::sleep_for(std::chrono::seconds(2));
+    //}
 }
 void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
 {
