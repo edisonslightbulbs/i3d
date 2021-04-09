@@ -25,7 +25,6 @@ void render(std::shared_ptr<Kinect>& sptr_kinect);
 
 std::pair<Point, Point> queryContextBoundary(std::vector<Point>& context);
 
-std::vector<Point> parse(
-    std::shared_ptr<Kinect>& sptr_kinect, std::vector<float>& pcl);
+std::vector<Point> parse(std::shared_ptr<Kinect>& sptr_kinect);
 }
 #endif /* INTACT_H */
