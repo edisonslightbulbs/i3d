@@ -5,9 +5,9 @@
 #include <utility>
 
 #include "intact.h"
-#include "io.h"
 #include "kinect.h"
 #include "outliers.h"
+#include "ply.h"
 #include "proposal.h"
 #include "svd.h"
 #include "viewer.h"
@@ -23,40 +23,46 @@ std::vector<Point> find(std::vector<Point>& points)
     std::vector<Point> denoisedPcl = outliers::filter(points);
 
     /** compute svd */
-    std::pair<Eigen::JacobiSVD<Eigen::MatrixXd>, Eigen::MatrixXd> USV;
+    std::pair<Eigen::JacobiSVD<Eigen::MatrixXf>, Eigen::MatrixXf> USV;
     USV = svd::compute(denoisedPcl);
 
     /** coarse segment */
     std::vector<Point> coarseSeg = proposal::grow(USV, denoisedPcl);
-    io::ply(coarseSeg);
 
     /** final segment */
     std::vector<Point> finalSeg = outliers::filter(coarseSeg);
 
     /** output interaction context as ply file */
-    // io::ply(points, finalSeg);
+    ply::write(points, finalSeg);
 
     /** return interaction context */
     return finalSeg;
 }
 
-std::vector<Point> intact::parse(
-    std::shared_ptr<Kinect>& sptr_kinect, std::vector<float>& pcl)
+std::vector<Point> intact::parse(std::shared_ptr<Kinect>& sptr_kinect)
 {
+    std::vector<Point>
+        pcl; // <- dynamic container (actual size not known ahead of time)
 
-    /** parse <float> cloud into <Point> cloud */
-    std::vector<Point> pclPoints; // <- size not known ahead of time!!
-    for (int i = 0; i < sptr_kinect->getNumPoints(); i++) {
-        if (pcl[3 * i + 0] == 0 || pcl[3 * i + 1] == 0 || pcl[3 * i + 2] == 0) {
+    for (int i = 0; i < sptr_kinect->m_numPoints; i++) {
+        float x = (*sptr_kinect->getPcl())[3 * i + 0];
+        float y = (*sptr_kinect->getPcl())[3 * i + 1];
+        float z = (*sptr_kinect->getPcl())[3 * i + 2];
+
+        if (x == 0 || y == 0 || z == 0) {
             continue;
         }
-        float x = pcl[3 * i + 0];
-        float y = pcl[3 * i + 1];
-        float z = pcl[3 * i + 2];
+
+        std::vector<float> rgb(3);
+        rgb[0] = (*sptr_kinect->getColor())[3 * i + 0];
+        rgb[1] = (*sptr_kinect->getColor())[3 * i + 1];
+        rgb[2] = (*sptr_kinect->getColor())[3 * i + 2];
+
         Point point(x, y, z);
-        pclPoints.push_back(point);
+        point.setRgb(rgb);
+        pcl.push_back(point);
     }
-    return pclPoints;
+    return pcl;
 }
 
 std::pair<Point, Point> intact::queryContextBoundary(
@@ -89,31 +95,28 @@ std::pair<Point, Point> intact::queryContextBoundary(
 
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
-    /** capture point cloud */
-    sptr_kinect->capturePcl(FAST_PCL);
+    /** capturing point cloud and use rgb to depth transformation */
+    sptr_kinect->capturePcl(RGB_TO_DEPTH);
 
-    // while (RUN_SYSTEM) {
-    std::vector<float> pcl = *sptr_kinect->getPcl();
+    while (RUN_SYSTEM) {
 
-    /** parse point cloud data into Point type definitions */
-    std::vector<Point> pclPoints = parse(sptr_kinect, pcl);
+        /** parse point cloud data into <Point> type */
+        std::vector<Point> points = parse(sptr_kinect);
 
-    /** segment tabletop interaction context */
-    std::vector<Point> context = find(pclPoints);
+        /** segment tabletop interaction context */
+        std::vector<Point> context = find(points);
 
-    // /** query interaction context boundary */
-    // std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
+        /** query interaction context boundary */
+        std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
 
-    // /** register interaction context */
-    // sptr_kinect->setContextBounds(contextBoundary);
+        /** register interaction context */
+        sptr_kinect->setContextBounds(contextBoundary);
 
-    // /** get colorized pcl */
-    // sptr_kinect->capturePcl(RGB_TO_DEPTH);
-
-    // /** update interaction context constraints every second */
-    // std::this_thread::sleep_for(std::chrono::seconds(2));
-    //}
+        /** update interaction context constraints every second */
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
 }
+
 void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
 {
     viewer::draw(sptr_kinect);
