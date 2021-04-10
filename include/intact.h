@@ -10,21 +10,45 @@
 
 namespace intact {
 /**
- * cut
- *   Identifies and isolates tabletop interaction context segment.
+ * segmentContext
+ *   Initiates pipeline operation for segmenting context.
  *
- * @param points
- *   Unorganized 3D point-cloud representation of tabletop environment.
- *
- * @retval
- *    Segment of tabletop interaction context
+ * @param sptr_kinect
+ *   Kinect device.
  */
-void segment(std::shared_ptr<Kinect>& sptr_kinect);
+void segmentContext(std::shared_ptr<Kinect>& sptr_kinect);
 
+/**
+ * render
+ *   Renders point cloud in real-time.
+ *
+ * @param sptr_kinect
+ *   Kinect device.
+ */
 void render(std::shared_ptr<Kinect>& sptr_kinect);
 
+/**
+ * queryContextBoundary
+ *   Queries the min max point boundaries of segmented context.
+ *
+ * @param context
+ *   Segmented interaction context.
+ *
+ * @retval
+ *    { Point_min, Point_max }
+ */
 std::pair<Point, Point> queryContextBoundary(std::vector<Point>& context);
 
-std::vector<Point> parse(std::shared_ptr<Kinect>& sptr_kinect);
+/**
+ * parsePcl
+ *   Parses point cloud from std::vector<float> to std::vector<Point>
+ *
+ * @param sptr_kinect
+ *   Kinect device.
+ *
+ * @retval
+ *    Point cloud points.
+ */
+std::vector<Point> parsePcl(std::shared_ptr<Kinect>& sptr_kinect);
 }
 #endif /* INTACT_H */
