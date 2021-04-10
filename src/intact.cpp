@@ -39,11 +39,9 @@ std::vector<Point> find(std::vector<Point>& points)
     return finalSeg;
 }
 
-std::vector<Point> intact::parse(std::shared_ptr<Kinect>& sptr_kinect)
+std::vector<Point> intact::parsePcl(std::shared_ptr<Kinect>& sptr_kinect)
 {
-    std::vector<Point>
-        pcl; // <- dynamic container (actual size not known ahead of time)
-
+    std::vector<Point> pcl;
     for (int i = 0; i < sptr_kinect->m_numPoints; i++) {
         float x = (*sptr_kinect->getPcl())[3 * i + 0];
         float y = (*sptr_kinect->getPcl())[3 * i + 1];
@@ -52,14 +50,12 @@ std::vector<Point> intact::parse(std::shared_ptr<Kinect>& sptr_kinect)
         if (x == 0 || y == 0 || z == 0) {
             continue;
         }
-
         std::vector<float> rgb(3);
         rgb[0] = (*sptr_kinect->getColor())[3 * i + 0];
         rgb[1] = (*sptr_kinect->getColor())[3 * i + 1];
         rgb[2] = (*sptr_kinect->getColor())[3 * i + 2];
-
         Point point(x, y, z);
-        point.setRgb(rgb);
+        point.setColor(rgb);
         pcl.push_back(point);
     }
     return pcl;
@@ -68,32 +64,28 @@ std::vector<Point> intact::parse(std::shared_ptr<Kinect>& sptr_kinect)
 std::pair<Point, Point> intact::queryContextBoundary(
     std::vector<Point>& context)
 {
-
     std::vector<float> X(context.size());
     std::vector<float> Y(context.size());
     std::vector<float> Z(context.size());
-
     for (auto& point : context) {
         X.push_back(point.m_x);
         Y.push_back(point.m_y);
         Z.push_back(point.m_z);
     }
-
-    /** find the max point and min point, viz,
-     *   upper and lower context point boundaries */
+    /** find the max and min points, viz,
+     *   upper and lower point boundaries */
     float xMax = *std::max_element(X.begin(), X.end());
     float xMin = *std::min_element(X.begin(), X.end());
     float yMax = *std::max_element(Y.begin(), Y.end());
     float yMin = *std::min_element(Y.begin(), Y.end());
     float zMax = *std::max_element(Z.begin(), Z.end());
     float zMin = *std::min_element(Z.begin(), Z.end());
-
     Point min(xMin, yMin, zMin);
     Point max(xMax, yMax, zMax);
     return { min, max };
 }
 
-void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
+void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
 {
     /** capturing point cloud and use rgb to depth transformation */
     sptr_kinect->record(RGB_TO_DEPTH);
@@ -101,7 +93,7 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
     while (RUN_SYSTEM) {
 
         /** parse point cloud data into <Point> type */
-        std::vector<Point> points = parse(sptr_kinect);
+        std::vector<Point> points = parsePcl(sptr_kinect);
 
         /** segment tabletop interaction context */
         std::vector<Point> context = find(points);
@@ -112,12 +104,13 @@ void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
         /** register interaction context */
         sptr_kinect->setContextBounds(contextBoundary);
 
-        /** update interaction context constraints every second */
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        /** update interaction context constraints every 40 milliseconds */
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
     }
 }
 
 void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
 {
+    /** render in real-time */
     viewer::draw(sptr_kinect);
 }
