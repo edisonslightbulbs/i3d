@@ -96,7 +96,7 @@ std::pair<Point, Point> intact::queryContextBoundary(
 void intact::segment(std::shared_ptr<Kinect>& sptr_kinect)
 {
     /** capturing point cloud and use rgb to depth transformation */
-    sptr_kinect->capturePcl(RGB_TO_DEPTH);
+    sptr_kinect->record(RGB_TO_DEPTH);
 
     while (RUN_SYSTEM) {
 
