@@ -6,10 +6,8 @@
 
 #include "intact.h"
 #include "kinect.h"
-#include "knn.h"
 #include "logger.h"
 #include "outliers.h"
-#include "ply.h"
 #include "proposal.h"
 #include "svd.h"
 #include "viewer.h"
@@ -18,9 +16,6 @@ extern std::shared_ptr<bool> RUN_SYSTEM;
 
 std::vector<Point> find(std::vector<Point>& points)
 {
-    /** copy unmodified point cloud */
-    std::vector<Point> clone = points;
-
     /** filter out outliers */
     std::vector<Point> denoisedPcl = outliers::filter(points);
 
@@ -67,9 +62,9 @@ std::pair<Point, Point> intact::queryContextBoundary(
     std::vector<float> Y(context.size());
     std::vector<float> Z(context.size());
     for (auto& point : context) {
-        X.push_back(point.m_x);
-        Y.push_back(point.m_y);
-        Z.push_back(point.m_z);
+        X.push_back(point.m_xyz[0]);
+        Y.push_back(point.m_xyz[1]);
+        Z.push_back(point.m_xyz[2]);
     }
     /** find the max and min points, viz,
      *   upper and lower point boundaries */
@@ -89,32 +84,23 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
     /** capturing point cloud and use rgb to depth transformation */
     sptr_kinect->record(RGB_TO_DEPTH);
 
-    // while (RUN_SYSTEM) {
+    while (RUN_SYSTEM) {
 
-    /** parse point cloud data into <Point> type */
-    std::vector<Point> points = parsePcl(sptr_kinect);
+        /** parse point cloud data into <Point> type */
+        std::vector<Point> points = parsePcl(sptr_kinect);
 
-    /** segment tabletop interaction context */
-    std::vector<Point> context = find(points);
+        /** segment tabletop interaction context */
+        std::vector<Point> context = find(points);
 
-    /** query interaction context boundary */
-    std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
+        /** query interaction context boundary */
+        std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
 
-    /** register interaction context */
-    sptr_kinect->setContextBounds(contextBoundary);
+        /** register interaction context */
+        sptr_kinect->setContextBounds(contextBoundary);
 
-    /** cluster interaction context */
-
-    /** output interaction context as ply file */
-    // ply::write(context);
-
-    /** computer nearest neighbours */
-    // std::vector<std::vector<Point>> nearestNeighbours =
-    // knn::compute(context);
-
-    //    /** update interaction context constraints every 40 milliseconds */
-    //    std::this_thread::sleep_for(std::chrono::milliseconds(40));
-    //}
+        /** update interaction context constraints every 40 milliseconds */
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    }
 }
 
 void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
