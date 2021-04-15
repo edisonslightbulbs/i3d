@@ -6,6 +6,8 @@
 
 #include "intact.h"
 #include "kinect.h"
+#include "knn.h"
+#include "logger.h"
 #include "outliers.h"
 #include "ply.h"
 #include "proposal.h"
@@ -31,9 +33,6 @@ std::vector<Point> find(std::vector<Point>& points)
 
     /** final segment */
     std::vector<Point> finalSeg = outliers::filter(coarseSeg);
-
-    /** output interaction context as ply file */
-    ply::write(points, finalSeg);
 
     /** return interaction context */
     return finalSeg;
@@ -90,23 +89,32 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
     /** capturing point cloud and use rgb to depth transformation */
     sptr_kinect->record(RGB_TO_DEPTH);
 
-    while (RUN_SYSTEM) {
+    // while (RUN_SYSTEM) {
 
-        /** parse point cloud data into <Point> type */
-        std::vector<Point> points = parsePcl(sptr_kinect);
+    /** parse point cloud data into <Point> type */
+    std::vector<Point> points = parsePcl(sptr_kinect);
 
-        /** segment tabletop interaction context */
-        std::vector<Point> context = find(points);
+    /** segment tabletop interaction context */
+    std::vector<Point> context = find(points);
 
-        /** query interaction context boundary */
-        std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
+    /** query interaction context boundary */
+    std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
 
-        /** register interaction context */
-        sptr_kinect->setContextBounds(contextBoundary);
+    /** register interaction context */
+    sptr_kinect->setContextBounds(contextBoundary);
 
-        /** update interaction context constraints every 40 milliseconds */
-        std::this_thread::sleep_for(std::chrono::milliseconds(40));
-    }
+    /** cluster interaction context */
+
+    /** output interaction context as ply file */
+    // ply::write(context);
+
+    /** computer nearest neighbours */
+    // std::vector<std::vector<Point>> nearestNeighbours =
+    // knn::compute(context);
+
+    //    /** update interaction context constraints every 40 milliseconds */
+    //    std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    //}
 }
 
 void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
