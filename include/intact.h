@@ -3,12 +3,15 @@
 
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <vector>
 
+#include "context.h"
 #include "kinect.h"
 #include "point.h"
 
 namespace intact {
+
 /**
  * segmentContext
  *   Initiates pipeline operation for segmenting context.
@@ -50,5 +53,7 @@ std::pair<Point, Point> queryContextBoundary(std::vector<Point>& context);
  *    Point cloud points.
  */
 std::vector<Point> parsePcl(std::shared_ptr<Kinect>& sptr_kinect);
+
+Context getContext();
 }
 #endif /* INTACT_H */
