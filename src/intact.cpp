@@ -12,6 +12,19 @@
 #include "svd.h"
 #include "viewer.h"
 
+std::mutex intact_mutex;
+std::shared_mutex sharedIntact_mutex;
+
+[[maybe_unused]] Context CONTEXT; /*NOLINT*/
+
+// experimental:-> external access to context
+Context intact::getContext()
+{
+    /** allow multiple threads to read context */
+    std::shared_lock lock(sharedIntact_mutex);
+    return CONTEXT;
+}
+
 extern std::shared_ptr<bool> RUN_SYSTEM;
 
 std::vector<Point> find(std::vector<Point>& points)
@@ -81,7 +94,7 @@ std::pair<Point, Point> intact::queryContextBoundary(
 
 void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
 {
-    /** capturing point cloud and use rgb to depth transformation */
+    /** capture point cloud using rgb-depth transformation */
     sptr_kinect->record(RGB_TO_DEPTH);
 
     while (RUN_SYSTEM) {
@@ -90,16 +103,18 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
         std::vector<Point> points = parsePcl(sptr_kinect);
 
         /** segment tabletop interaction context */
-        std::vector<Point> context = find(points);
+        std::vector<Point> segment = find(points);
+        Context t_context(segment);
+        CONTEXT = t_context;
 
         /** query interaction context boundary */
-        std::pair<Point, Point> contextBoundary = queryContextBoundary(context);
+        std::pair<Point, Point> contextBoundary = queryContextBoundary(segment);
 
         /** register interaction context */
         sptr_kinect->setContextBounds(contextBoundary);
 
         /** update interaction context constraints every 40 milliseconds */
-        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
 
