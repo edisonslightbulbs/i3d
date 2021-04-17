@@ -16,7 +16,6 @@ public:
     explicit Context(std::vector<Point>& points)
         : m_points(points)
     {
-        std::cout << "hello brave new world " << points.size() << std::endl;
     }
 
     Context() = default;
