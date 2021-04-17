@@ -4,8 +4,11 @@
 #include <thread>
 #include <utility>
 
+#include "dbscan.h"
 #include "intact.h"
+#include "io.h"
 #include "kinect.h"
+#include "knn.h"
 #include "logger.h"
 #include "outliers.h"
 #include "proposal.h"
@@ -14,15 +17,16 @@
 
 std::mutex intact_mutex;
 std::shared_mutex sharedIntact_mutex;
-
 [[maybe_unused]] Context CONTEXT; /*NOLINT*/
 
-// experimental:-> external access to context
-Context intact::getContext()
+Context* intact::getContext()
 {
     /** allow multiple threads to read context */
     std::shared_lock lock(sharedIntact_mutex);
-    return CONTEXT;
+    if (CONTEXT.m_points.empty()) {
+        return nullptr;
+    }
+    return &CONTEXT;
 }
 
 extern std::shared_ptr<bool> RUN_SYSTEM;
@@ -96,7 +100,6 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
 {
     /** capture point cloud using rgb-depth transformation */
     sptr_kinect->record(RGB_TO_DEPTH);
-
     while (RUN_SYSTEM) {
 
         /** parse point cloud data into <Point> type */
@@ -104,8 +107,12 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
 
         /** segment tabletop interaction context */
         std::vector<Point> segment = find(points);
-        Context t_context(segment);
-        CONTEXT = t_context;
+        {
+            /** block threads from accessing
+             *  CONTEXT during update */
+            std::lock_guard<std::mutex> lck(intact_mutex);
+            CONTEXT = Context(segment);
+        }
 
         /** query interaction context boundary */
         std::pair<Point, Point> contextBoundary = queryContextBoundary(segment);
@@ -122,4 +129,65 @@ void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
 {
     /** render in real-time */
     viewer::draw(sptr_kinect);
+}
+
+float estimateEpsilon(std::vector<Point>& points)
+{
+    /** query the K nearest neighbour of every point */
+    std::vector<float> knnQuery;
+    int k = 5;
+    const int testVal = 3;
+    // testVal corresponds to an arbitrary number of points for testing
+    // in theory, we should find the knns of every point. This is
+    // typically expensive, even with flann's impressive optimizations.
+    //
+    for (int i = 0; i < testVal; i++) {
+        int indexOfQueryPoint = i;
+        std::vector<std::pair<Point, float>> nn
+            = knn::compute(points, k, indexOfQueryPoint);
+        knnQuery.push_back(std::sqrt(nn[i].second));
+
+        std::cout << "#" << i << ",\t"
+                  << "dist: " << std::sqrt(nn[i].second) << ",\t"
+                  << "point: (" << nn[i].first.m_xyz[0] << ", "
+                  << nn[i].first.m_xyz[1] << ", " << nn[i].first.m_xyz[2]
+                  << ") " << std::endl;
+    }
+
+    std::sort(knnQuery.begin(), knnQuery.end(), std::greater<>());
+    const std::string file = io::pwd() + "/knn.csv";
+    std::cout << "writing the knn (k=4) of every point to: ";
+    std::cout << file << std::endl;
+    io::write(knnQuery, file);
+    // an important next step here is automate determining epsilon
+    // Currently the 4th nearest neighbour distance are output  to
+    // to a file and analyzed in matlab to visually extract the maximum
+    // curvature elbow.
+    //
+    return 0;
+}
+
+void densityScan(std::vector<Point>& points)
+{
+    // update clustered flag here
+    // update CONTEXT points here
+}
+
+void intact::cluster(const float& epsilon)
+{
+    std::cout << "hello brave new clustering thread !!! " << std::endl;
+    while (getContext() == nullptr) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    if (getContext() != nullptr) {
+        std::vector<Point> points = getContext()->m_points;
+
+        /** estimate epsilon value */
+        // estimateEpsilon(points);
+
+        /** cluster point cloud */
+        std::pair<std::vector<Point>, int> clusters = dbscan::original(points);
+        // then do dbscan
+    }
 }
