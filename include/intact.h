@@ -54,6 +54,8 @@ std::pair<Point, Point> queryContextBoundary(std::vector<Point>& context);
  */
 std::vector<Point> parsePcl(std::shared_ptr<Kinect>& sptr_kinect);
 
-Context getContext();
+Context* getContext();
+
+void cluster(const float& epsilon);
 }
 #endif /* INTACT_H */
