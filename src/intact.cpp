@@ -17,13 +17,13 @@
 
 std::mutex intact_mutex;
 std::shared_mutex sharedIntact_mutex;
-[[maybe_unused]] Context CONTEXT; /*NOLINT*/
 
-Context* intact::getContext()
+[[maybe_unused]] Context CONTEXT; /*NOLINT*/
+Context* intact::CURRENT_CONTEXT()
 {
     /** allow multiple threads to read context */
     std::shared_lock lock(sharedIntact_mutex);
-    if (CONTEXT.m_points.empty()) {
+    if (CONTEXT.sptr_points == nullptr) {
         return nullptr;
     }
     return &CONTEXT;
@@ -137,9 +137,9 @@ float estimateEpsilon(std::vector<Point>& points)
     std::vector<float> knnQuery;
     int k = 5;
     const int testVal = 3;
-    // testVal corresponds to an arbitrary number of points for testing
-    // in theory, we should find the knns of every point. This is
-    // typically expensive, even with flann's impressive optimizations.
+    // testVal corresponds to the first number of points (arbitrary testing).
+    // In theory, we should find the knns of every point. This is exponentially
+    // expensive, even with flann's impressive optimizations.
     //
     for (int i = 0; i < testVal; i++) {
         int indexOfQueryPoint = i;
@@ -154,6 +154,8 @@ float estimateEpsilon(std::vector<Point>& points)
                   << ") " << std::endl;
     }
 
+    /** sort points in descending order to extrapolate
+     *  the epsilon parameter visually */
     std::sort(knnQuery.begin(), knnQuery.end(), std::greater<>());
     const std::string file = io::pwd() + "/knn.csv";
     std::cout << "writing the knn (k=4) of every point to: ";
@@ -167,27 +169,27 @@ float estimateEpsilon(std::vector<Point>& points)
     return 0;
 }
 
-void densityScan(std::vector<Point>& points)
-{
-    // update clustered flag here
-    // update CONTEXT points here
-}
-
 void intact::cluster(const float& epsilon)
 {
     std::cout << "hello brave new clustering thread !!! " << std::endl;
-    while (getContext() == nullptr) {
+    while (CURRENT_CONTEXT() == nullptr) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    if (getContext() != nullptr) {
-        std::vector<Point> points = getContext()->m_points;
+    if (CURRENT_CONTEXT() != nullptr) {
 
         /** estimate epsilon value */
-        // estimateEpsilon(points);
+        // todo: move to dedicated worker thread
+        estimateEpsilon(*CURRENT_CONTEXT()->sptr_points);
 
         /** cluster point cloud */
-        std::pair<std::vector<Point>, int> clusters = dbscan::original(points);
-        // then do dbscan
+        // todo: introduce a already-clustered?  global semaphore!!
+        std::pair<std::vector<Point>, int> clusters
+            = dbscan::original(*CURRENT_CONTEXT()->sptr_points);
+
+        /** block threads from accessing
+         *  CONTEXT during update */
+        std::lock_guard<std::mutex> lck(intact_mutex);
+        CURRENT_CONTEXT()->setContext(clusters.first);
     }
 }
