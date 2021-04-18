@@ -11,6 +11,7 @@
 #include "knn.h"
 #include "logger.h"
 #include "outliers.h"
+#include "ply.h"
 #include "proposal.h"
 #include "svd.h"
 #include "viewer.h"
@@ -184,12 +185,16 @@ void intact::cluster(const float& epsilon)
 
         /** cluster point cloud */
         // todo: introduce a already-clustered?  global semaphore!!
-        std::pair<std::vector<Point>, int> clusters
-            = dbscan::original(*CURRENT_CONTEXT()->sptr_points);
+        std::pair<std::vector<Point>, int> densityClusters
+            = dbscan::cluster(*CURRENT_CONTEXT()->sptr_points);
 
         /** block threads from accessing
          *  CONTEXT during update */
         std::lock_guard<std::mutex> lck(intact_mutex);
-        CURRENT_CONTEXT()->setContext(clusters.first);
+        CURRENT_CONTEXT()->updateContext(densityClusters.first);
+        CURRENT_CONTEXT()->updateNumClusters(densityClusters.second);
+
+        /** visualize CONTEXT externally */
+        ply::write(*CURRENT_CONTEXT()->getContext());
     }
 }
