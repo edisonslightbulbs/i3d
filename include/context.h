@@ -10,6 +10,7 @@
 class Context {
 public:
     std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
+    std::shared_ptr<int> sptr_numClusters = nullptr;
 
     explicit Context(std::vector<Point>& points)
     {
@@ -31,9 +32,14 @@ public:
         return sptr_points;
     }
 
-    void setContext(std::vector<Point>& points)
+    void updateContext(std::vector<Point>& points)
     {
         sptr_points = std::make_shared<std::vector<Point>>(points);
+    }
+
+    void updateNumClusters(const int& clusters)
+    {
+        sptr_numClusters = std::make_shared<int>(clusters);
     }
 };
 #endif /* CONTEXT_H */
