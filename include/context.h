@@ -3,31 +3,37 @@
 
 #include <iostream>
 #include <memory>
-#include <mutex>
-#include <shared_mutex>
 #include <vector>
 
 #include "point.h"
 
 class Context {
 public:
-    std::vector<Point> m_points;
+    std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
     explicit Context(std::vector<Point>& points)
-        : m_points(points)
     {
+        sptr_points = std::make_shared<std::vector<Point>>(points);
     }
 
     Context() = default;
 
-    Context(const Context& other) { m_points = other.m_points; }
+    Context(const Context& other) { sptr_points = other.sptr_points; }
 
     Context& operator=(Context other)
     {
-        std::swap(m_points, other.m_points);
+        std::swap(sptr_points, other.sptr_points);
         return *this;
     }
 
-    [[nodiscard]] std::vector<Point> getContext() const { return m_points; }
+    [[nodiscard]] std::shared_ptr<std::vector<Point>> getContext() const
+    {
+        return sptr_points;
+    }
+
+    void setContext(std::vector<Point>& points)
+    {
+        sptr_points = std::make_shared<std::vector<Point>>(points);
+    }
 };
 #endif /* CONTEXT_H */
