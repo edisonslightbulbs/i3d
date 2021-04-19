@@ -16,11 +16,19 @@
 #include "svd.h"
 #include "viewer.h"
 
+// todo in the morning:
+// 1. change from atomic to shared pointer
+// 1.1. pass shared pointer and and mutexes
+// 2. real-timer render clusters using semaphores
+
 std::mutex intact_mutex;
 std::shared_mutex sharedIntact_mutex;
 
-[[maybe_unused]] Context CONTEXT; /*NOLINT*/
-Context* intact::CURRENT_CONTEXT()
+std::atomic<bool> CLUSTERED(false);
+
+[[maybe_unused]] Context CONTEXT;  /*NOLINT*/
+Context* intact::CURRENT_CONTEXT() // use CURRENT_CONTEXT when requesting
+                                   // current context !!
 {
     /** allow multiple threads to read context */
     std::shared_lock lock(sharedIntact_mutex);
@@ -112,7 +120,9 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
             /** block threads from accessing
              *  CONTEXT during update */
             std::lock_guard<std::mutex> lck(intact_mutex);
-            CONTEXT = Context(segment);
+            if (!CLUSTERED) {
+                CONTEXT = Context(segment, sptr_kinect->m_numPoints);
+            }
         }
 
         /** query interaction context boundary */
@@ -129,7 +139,15 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
 void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
 {
     /** render in real-time */
-    viewer::draw(sptr_kinect);
+    // viewer::draw(sptr_kinect);
+    while (CURRENT_CONTEXT() == nullptr || !CLUSTERED) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    if (CLUSTERED) {
+        viewer::draw(CURRENT_CONTEXT(), sptr_kinect);
+        /** update interaction context clusters constraints every 1 milliseconds
+         */
+    }
 }
 
 float estimateEpsilon(std::vector<Point>& points)
@@ -161,7 +179,7 @@ float estimateEpsilon(std::vector<Point>& points)
     const std::string file = io::pwd() + "/knn.csv";
     std::cout << "writing the knn (k=4) of every point to: ";
     std::cout << file << std::endl;
-    io::write(knnQuery, file);
+    // io::write(knnQuery, file);
     // an important next step here is automate determining epsilon
     // Currently the 4th nearest neighbour distance are output  to
     // to a file and analyzed in matlab to visually extract the maximum
@@ -178,21 +196,25 @@ void intact::cluster(const float& epsilon)
     }
 
     if (CURRENT_CONTEXT() != nullptr) {
-
         /** estimate epsilon value */
         // todo: move to dedicated worker thread
         estimateEpsilon(*CURRENT_CONTEXT()->sptr_points);
 
-        /** cluster point cloud */
-        // todo: introduce a already-clustered?  global semaphore!!
-        std::pair<std::vector<Point>, int> densityClusters
-            = dbscan::cluster(*CURRENT_CONTEXT()->sptr_points);
+        while (RUN_SYSTEM && !CLUSTERED) {
+            /** cluster point cloud */
+            // todo: introduce a already-clustered?  global semaphore!!
+            std::pair<std::vector<Point>, int> densityClusters
+                = dbscan::cluster(*CURRENT_CONTEXT()->sptr_points);
 
-        /** block threads from accessing
-         *  CONTEXT during update */
-        std::lock_guard<std::mutex> lck(intact_mutex);
-        CURRENT_CONTEXT()->updateContext(densityClusters.first);
-        CURRENT_CONTEXT()->updateNumClusters(densityClusters.second);
+            /** block threads from accessing
+             *  CONTEXT during update */
+            std::lock_guard<std::mutex> lck(intact_mutex);
+            CURRENT_CONTEXT()->updateContext(densityClusters.first);
+            CURRENT_CONTEXT()->updateNumClusters(densityClusters.second);
+            CLUSTERED = true; // todo this needs to be reset at a certain point
+            CURRENT_CONTEXT()->castPcl();
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        }
 
         /** visualize CONTEXT externally */
         ply::write(*CURRENT_CONTEXT()->getContext());
