@@ -14,15 +14,15 @@ extern std::shared_ptr<bool> RUN_SYSTEM;
 class Intact {
 
 public:
-    int m_numPoints; // <- number of points from kinect
+    int m_numPoints;
 
     /** shared pointers with context rendering format -- kinect pcl format */
-    std::shared_ptr<std::vector<float>> sptr_contextPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_contextRgb = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_context = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_color = nullptr;
 
     /** shared pointers with 3DINTACT's point typedef */
     std::shared_ptr<int> sptr_numClusters = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_contextPoints = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
     /** multi-threading  mutual exclusion control */
     std::mutex m_mutex;
@@ -42,11 +42,9 @@ public:
         sptr_isEpsilonComputed = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
 
-        sptr_contextPcl = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_contextRgb
-            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_contextPoints
-            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+        sptr_context = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_color = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+        sptr_points = std::make_shared<std::vector<Point>>(m_numPoints * 3);
     }
 
     void castPointsToPcl(std::vector<Point>& points)
@@ -81,15 +79,15 @@ public:
             pclRgb.push_back(rgb[2]);
         }
         std::lock_guard<std::mutex> lck(m_mutex);
-        *sptr_contextPcl = pcl;
-        *sptr_contextRgb = pclRgb;
+        *sptr_context = pcl;
+        *sptr_color = pclRgb;
     }
 
     void setContextPoints(const std::vector<Point>& points)
     {
         {
             std::lock_guard<std::mutex> lck(m_mutex);
-            *sptr_contextPoints = points;
+            *sptr_points = points;
         }
     }
 
@@ -106,27 +104,27 @@ public:
         std::vector<Point> points;
         {
             std::lock_guard<std::mutex> lck(m_mutex);
-            points = *sptr_contextPoints;
+            points = *sptr_points;
         }
         castPointsToPcl(points);
     }
 
-    std::vector<Point> getContextPoints()
+    std::shared_ptr<std::vector<Point>> getPoints()
     {
         std::shared_lock lock(s_mutex);
-        return *sptr_contextPoints;
+        return sptr_points;
     }
 
-    std::vector<float> getContextPcl()
+    std::shared_ptr<std::vector<float>> getContext()
     {
-        std::shared_lock lock(s_mutex);
-        return *sptr_contextPcl;
+        std::lock_guard<std::mutex> lck(m_mutex);
+        return sptr_context;
     }
 
-    std::vector<uint8_t> getContextRgb()
+    std::shared_ptr<std::vector<uint8_t>> getColor()
     {
-        std::shared_lock lock(s_mutex);
-        return *sptr_contextRgb;
+        std::lock_guard<std::mutex> lck(m_mutex);
+        return sptr_color;
     }
 
     void setSegmentedFlag()
