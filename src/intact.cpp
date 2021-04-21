@@ -1,6 +1,5 @@
 #include <Eigen/Dense>
 #include <chrono>
-#include <iostream>
 #include <thread>
 #include <utility>
 
@@ -11,34 +10,29 @@
 #include "knn.h"
 #include "logger.h"
 #include "outliers.h"
-#include "ply.h"
 #include "proposal.h"
 #include "svd.h"
+#include "timer.h"
 #include "viewer.h"
+//#include "ply.h"
 
-// todo in the morning:
-// 1. change from atomic to shared pointer
-// 1.1. pass shared pointer and and mutexes
-// 2. real-timer render clusters using semaphores
+// Developer options to disable/enable segmenting,
+// epsilon evaluation, clustering and rendering
+//
+#define RENDER 0
+#define CLUSTER 1
+#define SEGMENT 1
+#define COMPUTE_EPSILON 1
 
-std::mutex intact_mutex;
-std::shared_mutex sharedIntact_mutex;
-
-std::atomic<bool> CLUSTERED(false);
-
-[[maybe_unused]] Context CONTEXT;  /*NOLINT*/
-Context* intact::CURRENT_CONTEXT() // use CURRENT_CONTEXT when requesting
-                                   // current context !!
-{
-    /** allow multiple threads to read context */
-    std::shared_lock lock(sharedIntact_mutex);
-    if (CONTEXT.sptr_points == nullptr) {
-        return nullptr;
-    }
-    return &CONTEXT;
-}
-
-extern std::shared_ptr<bool> RUN_SYSTEM;
+// Developer options to disable/enable,
+// log tracing
+//
+#define LOG_TRACE 1
+#if LOG_TRACE == 1
+#define TRACE(string) LOG(INFO) << string
+#else
+#define TRACE
+#endif
 
 std::vector<Point> find(std::vector<Point>& points)
 {
@@ -59,29 +53,7 @@ std::vector<Point> find(std::vector<Point>& points)
     return finalSeg;
 }
 
-std::vector<Point> intact::parsePcl(std::shared_ptr<Kinect>& sptr_kinect)
-{
-    std::vector<Point> pcl;
-    for (int i = 0; i < sptr_kinect->m_numPoints; i++) {
-        float x = (*sptr_kinect->getPcl())[3 * i + 0];
-        float y = (*sptr_kinect->getPcl())[3 * i + 1];
-        float z = (*sptr_kinect->getPcl())[3 * i + 2];
-
-        if (x == 0 || y == 0 || z == 0) {
-            continue;
-        }
-        std::vector<float> rgb(3);
-        rgb[0] = (*sptr_kinect->getColor())[3 * i + 0];
-        rgb[1] = (*sptr_kinect->getColor())[3 * i + 1];
-        rgb[2] = (*sptr_kinect->getColor())[3 * i + 2];
-        Point point(x, y, z);
-        point.setColor(rgb);
-        pcl.push_back(point);
-    }
-    return pcl;
-}
-
-std::pair<Point, Point> intact::queryContextBoundary(
+std::pair<Point, Point> Intact::queryContextBoundary(
     std::vector<Point>& context)
 {
     std::vector<float> X(context.size());
@@ -105,24 +77,50 @@ std::pair<Point, Point> intact::queryContextBoundary(
     return { min, max };
 }
 
-void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
+std::vector<Point> Intact::castPclToPoints(std::shared_ptr<Kinect>& sptr_kinect)
 {
+    std::vector<Point> pcl;
+    for (int i = 0; i < sptr_kinect->m_numPoints; i++) {
+        float x = (*sptr_kinect->getPcl())[3 * i + 0];
+        float y = (*sptr_kinect->getPcl())[3 * i + 1];
+        float z = (*sptr_kinect->getPcl())[3 * i + 2];
+
+        if (x == 0 || y == 0 || z == 0) {
+            continue;
+        }
+        std::vector<float> rgb(3);
+        rgb[0] = (*sptr_kinect->getColor())[3 * i + 0];
+        rgb[1] = (*sptr_kinect->getColor())[3 * i + 1];
+        rgb[2] = (*sptr_kinect->getColor())[3 * i + 2];
+        Point point(x, y, z);
+        point.setColor(rgb);
+        pcl.push_back(point);
+    }
+    return pcl;
+}
+
+void Intact::segmentContext(
+    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
+{
+#if SEGMENT
     /** capture point cloud using rgb-depth transformation */
     sptr_kinect->record(RGB_TO_DEPTH);
+    bool firstRun = true;
+
     while (RUN_SYSTEM) {
 
         /** parse point cloud data into <Point> type */
-        std::vector<Point> points = parsePcl(sptr_kinect);
+        std::vector<Point> points = castPclToPoints(sptr_kinect);
 
-        /** segment tabletop interaction context */
+        /** segment tabletop interaction context ~15ms */
         std::vector<Point> segment = find(points);
-        {
-            /** block threads from accessing
-             *  CONTEXT during update */
-            std::lock_guard<std::mutex> lck(intact_mutex);
-            if (!CLUSTERED) {
-                CONTEXT = Context(segment, sptr_kinect->m_numPoints);
-            }
+        sptr_intact->setContextPoints(segment);
+
+        /** update flow control semaphores */
+        if (firstRun) {
+            firstRun = false;
+            sptr_intact->setSegmentedFlag();
+            TRACE("-- context segmented");
         }
 
         /** query interaction context boundary */
@@ -131,92 +129,145 @@ void intact::segmentContext(std::shared_ptr<Kinect>& sptr_kinect)
         /** register interaction context */
         sptr_kinect->setContextBounds(contextBoundary);
 
-        /** update interaction context constraints every 40 milliseconds */
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
+#endif
 }
 
-void intact::render(std::shared_ptr<Kinect>& sptr_kinect)
+// Developer option to enable/disable
+// printing knn results to terminal
+//
+#define PRINT_KNN 0
+void printKnn(int& i, std::vector<std::pair<Point, float>>& nn)
 {
-    /** render in real-time */
-    // viewer::draw(sptr_kinect);
-    while (CURRENT_CONTEXT() == nullptr || !CLUSTERED) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    if (CLUSTERED) {
-        viewer::draw(CURRENT_CONTEXT(), sptr_kinect);
-        /** update interaction context clusters constraints every 1 milliseconds
-         */
-    }
+#if PRINT_KNN == 1
+    std::cout << "#" << i << ",\t"
+              << "dist: " << std::sqrt(nn[i].second) << ",\t"
+              << "point: (" << nn[i].first.m_xyz[0] << ", "
+              << nn[i].first.m_xyz[1] << ", " << nn[i].first.m_xyz[2] << ")"
+              << std::endl;
+#endif
 }
 
-float estimateEpsilon(std::vector<Point>& points)
+// Developer option to enable/disable
+// printing knn results to terminal
+//
+#define WRITE_KNN 0
+void writeKnn(std::vector<float>& knnQuery)
 {
-    /** query the K nearest neighbour of every point */
-    std::vector<float> knnQuery;
-    int k = 5;
-    const int testVal = 3;
-    // testVal corresponds to the first number of points (arbitrary testing).
-    // In theory, we should find the knns of every point. This is exponentially
-    // expensive, even with flann's impressive optimizations.
-    //
-    for (int i = 0; i < testVal; i++) {
-        int indexOfQueryPoint = i;
-        std::vector<std::pair<Point, float>> nn
-            = knn::compute(points, k, indexOfQueryPoint);
-        knnQuery.push_back(std::sqrt(nn[i].second));
-
-        std::cout << "#" << i << ",\t"
-                  << "dist: " << std::sqrt(nn[i].second) << ",\t"
-                  << "point: (" << nn[i].first.m_xyz[0] << ", "
-                  << nn[i].first.m_xyz[1] << ", " << nn[i].first.m_xyz[2]
-                  << ") " << std::endl;
-    }
-
-    /** sort points in descending order to extrapolate
-     *  the epsilon parameter visually */
+#if WRITE_KNN == 1
     std::sort(knnQuery.begin(), knnQuery.end(), std::greater<>());
     const std::string file = io::pwd() + "/knn.csv";
     std::cout << "writing the knn (k=4) of every point to: ";
     std::cout << file << std::endl;
-    // io::write(knnQuery, file);
-    // an important next step here is automate determining epsilon
-    // Currently the 4th nearest neighbour distance are output  to
-    // to a file and analyzed in matlab to visually extract the maximum
-    // curvature elbow.
-    //
-    return 0;
+    io::write(knnQuery, file);
+#endif
 }
 
-void intact::cluster(const float& epsilon)
+void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 {
-    std::cout << "hello brave new clustering thread !!! " << std::endl;
-    while (CURRENT_CONTEXT() == nullptr) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+#if COMPUTE_EPSILON
+    /** wait for segmented context */
+    while (!sptr_intact->isSegmented()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
 
-    if (CURRENT_CONTEXT() != nullptr) {
-        /** estimate epsilon value */
-        // todo: move to dedicated worker thread
-        estimateEpsilon(*CURRENT_CONTEXT()->sptr_points);
+    TRACE("-- evaluating k nearest neighbours");
+    std::vector<Point> points = sptr_intact->getContextPoints();
 
-        while (RUN_SYSTEM && !CLUSTERED) {
-            /** cluster point cloud */
-            // todo: introduce a already-clustered?  global semaphore!!
-            std::pair<std::vector<Point>, int> densityClusters
-                = dbscan::cluster(*CURRENT_CONTEXT()->sptr_points);
+    const int testVal = 3;
+    // testVal used for arbitrary test for release, use
+    // points.size()) (computationally expensive task)
+    //
 
-            /** block threads from accessing
-             *  CONTEXT during update */
-            std::lock_guard<std::mutex> lck(intact_mutex);
-            CURRENT_CONTEXT()->updateContext(densityClusters.first);
-            CURRENT_CONTEXT()->updateNumClusters(densityClusters.second);
-            CLUSTERED = true; // todo this needs to be reset at a certain point
-            CURRENT_CONTEXT()->castPcl();
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    /** evaluate k=4th nearest neighbours for every point */
+    std::vector<float> knnQuery;
+    for (int i = 0; i < testVal; i++) {
+        int indexOfQueryPoint = i;
+        std::vector<std::pair<Point, float>> nn
+            = knn::compute(points, K, indexOfQueryPoint);
+        knnQuery.push_back(std::sqrt(nn[i].second));
+        printKnn(i, nn);
+    }
+
+    writeKnn(knnQuery);
+    sptr_intact->setEpsilonComputedFlag();
+#endif
+}
+
+// Developer option to enable/disable
+// writing ply file of segmented context
+//
+#define WRITE_PLY_FILE 0
+#if WRITE_PLY_FILE == 1
+#define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points) ply::write(points)
+#else
+#define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points)
+#endif
+
+void Intact::cluster(
+    const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
+{
+#if CLUSTER
+    {
+        /** wait for epsilon value */
+        while (!sptr_intact->isEpsilonComputed()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(3));
         }
 
-        /** visualize CONTEXT externally */
-        ply::write(*CURRENT_CONTEXT()->getContext());
+        /** cluster segmented interaction context ~130ms/ loop run-through */
+        std::vector<Point> points;
+        std::pair<std::vector<Point>, int> clusteredContext;
+        bool firstRun = true;
+        while (RUN_SYSTEM) {
+            points = sptr_intact->getContextPoints();
+            clusteredContext = dbscan::cluster(points, E, N);
+            sptr_intact->setContextPoints(clusteredContext.first);
+            sptr_intact->setNumClusters(clusteredContext.second);
+            sptr_intact->castPointsToPcl();
+            TRACE("-- context points clustered and synchronized");
+
+            if (firstRun) {
+                firstRun = false;
+                sptr_intact->setClusteredFlag();
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
+    WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(*sptr_intact->sptr_contextPoints);
+#endif
+}
+
+// Developer options to render *either
+// segmented point cloud *or (not both!)
+// segmented and density clustered point cloud
+//
+#define RENDER_SEGMENTED 1
+#define RENDER_CLUSTERED 0
+
+void Intact::renderContext(
+    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
+{
+#if RENDER
+#if RENDER_SEGMENTED
+    /** render interaction context in real-time (un-clustered)  */
+    // viewer::draw(sptr_kinect);
+#endif
+
+    {
+        /** allow this threads to read context points, and
+         * isContextSegmented and isEpsilonComputed semaphores */
+        std::shared_lock lock(sptr_intact->s_mutex);
+
+        /** wait for epsilon value */
+        while (!*sptr_intact->sptr_isContextClustered) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+
+#if RENDER_CLUSTERED
+    /** render interaction context in real-time (clustered)  */
+    viewer::draw(sptr_intact, sptr_kinect);
+#endif
+#endif
 }
