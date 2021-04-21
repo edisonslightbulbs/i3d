@@ -10,16 +10,16 @@
 #include "knn.h"
 #include "logger.h"
 #include "outliers.h"
+#include "ply.h"
 #include "proposal.h"
 #include "svd.h"
 #include "timer.h"
 #include "viewer.h"
-//#include "ply.h"
 
 // Developer options to disable/enable segmenting,
 // epsilon evaluation, clustering and rendering
 //
-#define RENDER 0
+#define RENDER 1
 #define CLUSTER 1
 #define SEGMENT 1
 #define COMPUTE_EPSILON 1
@@ -27,7 +27,7 @@
 // Developer options to disable/enable,
 // log tracing
 //
-#define LOG_TRACE 1
+#define LOG_TRACE 0
 #if LOG_TRACE == 1
 #define TRACE(string) LOG(INFO) << string
 #else
@@ -120,7 +120,7 @@ void Intact::segmentContext(
         if (firstRun) {
             firstRun = false;
             sptr_intact->setSegmentedFlag();
-            TRACE("-- context segmented");
+            TRACE("-- context segmented"); /*NOLINT*/
         }
 
         /** query interaction context boundary */
@@ -129,7 +129,7 @@ void Intact::segmentContext(
         /** register interaction context */
         sptr_kinect->setContextBounds(contextBoundary);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 #endif
 }
@@ -172,8 +172,8 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
 
-    TRACE("-- evaluating k nearest neighbours");
-    std::vector<Point> points = sptr_intact->getContextPoints();
+    TRACE("-- evaluating k nearest neighbours"); /*NOLINT*/
+    std::vector<Point> points = *sptr_intact->getPoints();
 
     const int testVal = 3;
     // testVal used for arbitrary test for release, use
@@ -198,7 +198,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 // Developer option to enable/disable
 // writing ply file of segmented context
 //
-#define WRITE_PLY_FILE 0
+#define WRITE_PLY_FILE 1
 #if WRITE_PLY_FILE == 1
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points) ply::write(points)
 #else
@@ -212,7 +212,7 @@ void Intact::cluster(
     {
         /** wait for epsilon value */
         while (!sptr_intact->isEpsilonComputed()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
 
         /** cluster segmented interaction context ~130ms/ loop run-through */
@@ -220,30 +220,31 @@ void Intact::cluster(
         std::pair<std::vector<Point>, int> clusteredContext;
         bool firstRun = true;
         while (RUN_SYSTEM) {
-            points = sptr_intact->getContextPoints();
+            points = *sptr_intact->getPoints();
             clusteredContext = dbscan::cluster(points, E, N);
             sptr_intact->setContextPoints(clusteredContext.first);
             sptr_intact->setNumClusters(clusteredContext.second);
             sptr_intact->castPointsToPcl();
-            TRACE("-- context points clustered and synchronized");
+            TRACE("-- context points clustered and synchronized"); /*NOLINT*/
 
             if (firstRun) {
                 firstRun = false;
                 sptr_intact->setClusteredFlag();
             }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(*sptr_intact->sptr_contextPoints);
+    WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(*sptr_intact->getPoints());
+        /*NOLINT*/ // todo: testing
 #endif
 }
 
 // Developer options to render *either
-// segmented point cloud *or (not both!)
-// segmented and density clustered point cloud
+// segmented point cloud *or (not both)
+// segmented + density clustered point cloud
 //
-#define RENDER_SEGMENTED 1
-#define RENDER_CLUSTERED 0
+#define RENDER_SEGMENTED 0
+#define RENDER_CLUSTERED 1
 
 void Intact::renderContext(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
@@ -251,18 +252,11 @@ void Intact::renderContext(
 #if RENDER
 #if RENDER_SEGMENTED
     /** render interaction context in real-time (un-clustered)  */
-    // viewer::draw(sptr_kinect);
+    viewer::draw(sptr_kinect);
 #endif
-
-    {
-        /** allow this threads to read context points, and
-         * isContextSegmented and isEpsilonComputed semaphores */
-        std::shared_lock lock(sptr_intact->s_mutex);
-
-        /** wait for epsilon value */
-        while (!*sptr_intact->sptr_isContextClustered) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        }
+    /** wait for epsilon value */
+    while (!sptr_intact->isClustered()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
 #if RENDER_CLUSTERED
