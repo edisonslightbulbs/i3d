@@ -1,30 +1,31 @@
-#include <Eigen/Dense>
 #include <chrono>
 #include <thread>
 #include <utility>
 
+#include "cast.h"
 #include "dbscan.h"
 #include "intact.h"
-#include "io.h"
 #include "kinect.h"
 #include "knn.h"
 #include "logger.h"
-#include "outliers.h"
-#include "ply.h"
-#include "proposal.h"
-#include "svd.h"
+#include "region.h"
 #include "timer.h"
 #include "viewer.h"
 
-// Developer options to disable/enable segmenting,
-// epsilon evaluation, clustering and rendering
+// Developer IO utility:
+//
+#include "io.h"
+#include "ply.h"
+
+// Developer option:
+// epsilon evaluation
 //
 #define RENDER 1
 #define CLUSTER 1
 #define SEGMENT 1
 #define COMPUTE_EPSILON 1
 
-// Developer options to disable/enable,
+// Developer option:
 // log tracing
 //
 #define LOG_TRACE 0
@@ -34,72 +35,89 @@
 #define TRACE
 #endif
 
-std::vector<Point> find(std::vector<Point>& points)
+void Intact::adapt()
 {
-    /** filter out outliers */
-    std::vector<Point> denoisedPcl = outliers::filter(points);
-
-    /** compute svd */
-    std::pair<Eigen::JacobiSVD<Eigen::MatrixXf>, Eigen::MatrixXf> USV;
-    USV = svd::compute(denoisedPcl);
-
-    /** coarse segment */
-    std::vector<Point> coarseSeg = proposal::grow(USV, denoisedPcl);
-
-    /** final segment */
-    std::vector<Point> finalSeg = outliers::filter(coarseSeg);
-
-    /** return interaction context */
-    return finalSeg;
-}
-
-std::pair<Point, Point> Intact::queryContextBoundary(
-    std::vector<Point>& context)
-{
-    std::vector<float> X(context.size());
-    std::vector<float> Y(context.size());
-    std::vector<float> Z(context.size());
-    for (auto& point : context) {
-        X.push_back(point.m_xyz[0]);
-        Y.push_back(point.m_xyz[1]);
-        Z.push_back(point.m_xyz[2]);
+    std::vector<Point> points;
+    {
+        std::lock_guard<std::mutex> lck(m_mutex);
+        points = *sptr_points;
     }
-    /** find the max and min points, viz,
-     *   upper and lower point boundaries */
-    float xMax = *std::max_element(X.begin(), X.end());
-    float xMin = *std::min_element(X.begin(), X.end());
-    float yMax = *std::max_element(Y.begin(), Y.end());
-    float yMin = *std::min_element(Y.begin(), Y.end());
-    float zMax = *std::max_element(Z.begin(), Z.end());
-    float zMin = *std::min_element(Z.begin(), Z.end());
-    Point min(xMin, yMin, zMin);
-    Point max(xMax, yMax, zMax);
-    return { min, max };
+    std::pair<std::vector<float>, std::vector<uint8_t>> pcl
+        = cast::toPcl(points);
+
+    /** safely update context */
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_context = pcl.first;
+    *sptr_color = pcl.second;
 }
 
-std::vector<Point> Intact::castPclToPoints(std::shared_ptr<Kinect>& sptr_kinect)
+void Intact::setContextPoints(const std::vector<Point>& points)
 {
-    std::vector<Point> pcl;
-    for (int i = 0; i < sptr_kinect->m_numPoints; i++) {
-        float x = (*sptr_kinect->getPcl())[3 * i + 0];
-        float y = (*sptr_kinect->getPcl())[3 * i + 1];
-        float z = (*sptr_kinect->getPcl())[3 * i + 2];
-
-        if (x == 0 || y == 0 || z == 0) {
-            continue;
-        }
-        std::vector<float> rgb(3);
-        rgb[0] = (*sptr_kinect->getColor())[3 * i + 0];
-        rgb[1] = (*sptr_kinect->getColor())[3 * i + 1];
-        rgb[2] = (*sptr_kinect->getColor())[3 * i + 2];
-        Point point(x, y, z);
-        point.setColor(rgb);
-        pcl.push_back(point);
-    }
-    return pcl;
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_points = points;
 }
 
-void Intact::segmentContext(
+void Intact::setNumClusters(const int& clusters)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_numClusters = clusters;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return sptr_points;
+}
+
+std::shared_ptr<std::vector<float>> Intact::getContext()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_context;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getColor()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_color;
+}
+
+void Intact::raiseSegFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_isContextSegmented = true;
+}
+
+void Intact::raiseClustFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_isContextClustered = true;
+}
+
+void Intact::raiseEpsilonFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_isEpsilonComputed = true;
+}
+
+bool Intact::isSegmented()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_isContextSegmented;
+}
+
+bool Intact::isClustered()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_isContextClustered;
+}
+
+bool Intact::isEpsilonComputed()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_isEpsilonComputed;
+}
+
+void Intact::segment(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
 #if SEGMENT
@@ -110,21 +128,22 @@ void Intact::segmentContext(
     while (RUN_SYSTEM) {
 
         /** parse point cloud data into <Point> type */
-        std::vector<Point> points = castPclToPoints(sptr_kinect);
+        std::vector<Point> points = cast::toPoint(*sptr_kinect->getPcl(),
+            *sptr_kinect->getColor(), sptr_kinect->m_numPoints);
 
         /** segment tabletop interaction context ~15ms */
-        std::vector<Point> segment = find(points);
-        sptr_intact->setContextPoints(segment);
+        std::vector<Point> seg = region::segment(points);
+        sptr_intact->setContextPoints(seg);
 
         /** update flow control semaphores */
         if (firstRun) {
             firstRun = false;
-            sptr_intact->setSegmentedFlag();
+            sptr_intact->raiseSegFlag();
             TRACE("-- context segmented"); /*NOLINT*/
         }
 
         /** query interaction context boundary */
-        std::pair<Point, Point> contextBoundary = queryContextBoundary(segment);
+        std::pair<Point, Point> contextBoundary = region::queryBoundary(seg);
 
         /** register interaction context */
         sptr_kinect->setContextBounds(contextBoundary);
@@ -134,8 +153,8 @@ void Intact::segmentContext(
 #endif
 }
 
-// Developer option to enable/disable
-// printing knn results to terminal
+// Developer option:
+// print knn results
 //
 #define PRINT_KNN 0
 void printKnn(int& i, std::vector<std::pair<Point, float>>& nn)
@@ -149,8 +168,8 @@ void printKnn(int& i, std::vector<std::pair<Point, float>>& nn)
 #endif
 }
 
-// Developer option to enable/disable
-// printing knn results to terminal
+// Developer option:
+// write knn results to file
 //
 #define WRITE_KNN 0
 void writeKnn(std::vector<float>& knnQuery)
@@ -189,14 +208,13 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
         knnQuery.push_back(std::sqrt(nn[i].second));
         printKnn(i, nn);
     }
-
     writeKnn(knnQuery);
-    sptr_intact->setEpsilonComputedFlag();
+    sptr_intact->raiseEpsilonFlag();
 #endif
 }
 
-// Developer option to enable/disable
-// writing ply file of segmented context
+// Developer option:
+// write segmented context to ply file
 //
 #define WRITE_PLY_FILE 0
 #if WRITE_PLY_FILE == 1
@@ -224,12 +242,12 @@ void Intact::cluster(
             clusteredContext = dbscan::cluster(points, E, N);
             sptr_intact->setContextPoints(clusteredContext.first);
             sptr_intact->setNumClusters(clusteredContext.second);
-            sptr_intact->castPointsToPcl();
+            sptr_intact->adapt();
             TRACE("-- context points clustered and synchronized"); /*NOLINT*/
 
             if (firstRun) {
                 firstRun = false;
-                sptr_intact->setClusteredFlag();
+                sptr_intact->raiseClustFlag();
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -238,14 +256,14 @@ void Intact::cluster(
 #endif
 }
 
-// Developer options to render *either
-// segmented point cloud *or (not both)
-// segmented + density clustered point cloud
+// Developer options:
+// option (1) render segment
+// option (2) render clusters
 //
 #define RENDER_SEGMENTED 0
 #define RENDER_CLUSTERED 1
 
-void Intact::renderContext(
+void Intact::render(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
 #if RENDER
