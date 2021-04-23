@@ -109,7 +109,6 @@ public:
 
     /** helpers:
      *   Setters. */
-    void setNumClusters(const int& clusters);
 
     void setContextPoints(const std::vector<Point>& points);
 
