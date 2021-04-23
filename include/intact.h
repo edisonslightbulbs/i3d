@@ -14,14 +14,22 @@ extern std::shared_ptr<bool> RUN_SYSTEM;
 class Intact {
 
 public:
+    /** number of raw point cloud points */
     int m_numPoints;
 
-    /** for context rendering */
-    std::shared_ptr<std::vector<float>> sptr_context = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_color = nullptr;
+    /** raw point cloud */
+    std::shared_ptr<std::vector<float>> sptr_raw = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_rawColor = nullptr;
 
-    /** for context processing */
-    std::shared_ptr<int> sptr_numClusters = nullptr;
+    /** raw point cloud segment */
+    std::shared_ptr<std::vector<float>> sptr_segment = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_segmentColor = nullptr;
+
+    /** segment region */
+    std::shared_ptr<std::vector<float>> sptr_region = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_regionColor = nullptr;
+
+    /** arbitrary points for processing */
     std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
     /** mutual exclusion */
@@ -37,15 +45,22 @@ public:
     explicit Intact(int& numPoints)
         : m_numPoints(numPoints)
     {
-        sptr_numClusters = std::make_shared<int>(0);
-
         sptr_isEpsilonComputed = std::make_shared<bool>(false);
         sptr_isContextClustered = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
 
+        sptr_raw = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_rawColor = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+
+        sptr_segment = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_segmentColor
+            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+
+        sptr_region = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_regionColor
+            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+
         sptr_points = std::make_shared<std::vector<Point>>(m_numPoints * 3);
-        sptr_context = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_color = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
     }
 
     /**
@@ -107,21 +122,25 @@ public:
      */
     void adapt();
 
-    /** helpers:
-     *   Setters. */
+    /** Setters. */
+    void setPoints(const std::vector<Point>& points);
 
-    void setContextPoints(const std::vector<Point>& points);
-
-    /** helpers:
-     *   Getters. */
+    /** Getters. */
     std::shared_ptr<std::vector<Point>> getPoints();
 
-    std::shared_ptr<std::vector<float>> getContext();
+    std::shared_ptr<std::vector<float>> getRaw();
 
-    std::shared_ptr<std::vector<uint8_t>> getColor();
+    std::shared_ptr<std::vector<float>> getSegment();
 
-    /** helpers:
-     *  Thread-safe-semaphore controllers */
+    std::shared_ptr<std::vector<float>> getRegion();
+
+    std::shared_ptr<std::vector<uint8_t>> getRawColor();
+
+    std::shared_ptr<std::vector<uint8_t>> getSegmentColor();
+
+    std::shared_ptr<std::vector<uint8_t>> getRegionColor();
+
+    /** Thread-safe-semaphores */
     bool isSegmented();
 
     bool isClustered();
