@@ -216,7 +216,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 // Developer option:
 // write segmented context to ply file
 //
-#define WRITE_PLY_FILE 0
+#define WRITE_PLY_FILE 1
 #if WRITE_PLY_FILE == 1
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points) ply::write(points)
 #else
@@ -248,11 +248,12 @@ void Intact::cluster(
             if (firstRun) {
                 firstRun = false;
                 sptr_intact->raiseClustFlag();
+                WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
+                    *sptr_intact->getPoints()); /*NOLINT*/
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(*sptr_intact->getPoints()); /*NOLINT*/
 #endif
 }
 
