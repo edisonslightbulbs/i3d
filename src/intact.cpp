@@ -48,11 +48,11 @@ void Intact::adapt()
 
     /** safely update context */
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_context = pcl.first;
-    *sptr_color = pcl.second;
+    *sptr_region = pcl.first;
+    *sptr_regionColor = pcl.second;
 }
 
-void Intact::setContextPoints(const std::vector<Point>& points)
+void Intact::setPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_points = points;
@@ -64,16 +64,40 @@ std::shared_ptr<std::vector<Point>> Intact::getPoints()
     return sptr_points;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getContext()
+std::shared_ptr<std::vector<float>> Intact::getRaw()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_context;
+    return sptr_raw;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getColor()
+std::shared_ptr<std::vector<uint8_t>> Intact::getRawColor()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_color;
+    return sptr_rawColor;
+}
+
+std::shared_ptr<std::vector<float>> Intact::getSegment()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_segment;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentColor()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_segmentColor;
+}
+
+std::shared_ptr<std::vector<float>> Intact::getRegion()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_region;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getRegionColor()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_regionColor;
 }
 
 void Intact::raiseSegFlag()
@@ -128,7 +152,7 @@ void Intact::segment(
 
         /** segment tabletop interaction context ~15ms */
         std::vector<Point> seg = region::segment(points);
-        sptr_intact->setContextPoints(seg);
+        sptr_intact->setPoints(seg);
 
         /** update flow control semaphores */
         if (firstRun) {
@@ -244,7 +268,7 @@ void Intact::cluster(
             }
 
             /** preprocess points for rendering */
-            sptr_intact->setContextPoints(objects[0].m_points);
+            sptr_intact->setPoints(objects[0].m_points);
             sptr_intact->adapt();
 
             if (firstRun) {
@@ -262,9 +286,11 @@ void Intact::cluster(
 // Developer options:
 // option (1) render segment
 // option (2) render clusters
+// todo: option (3) render unmodified point cloud
+// todo: option (4) interactive rendering for individual objects
 //
-#define RENDER_SEGMENTED 0
-#define RENDER_CLUSTERED 1
+#define RENDER_SEGMENTED 1
+#define RENDER_CLUSTERED 0
 
 void Intact::render(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
