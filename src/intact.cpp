@@ -12,19 +12,8 @@
 #include "region.h"
 #include "timer.h"
 #include "viewer.h"
-
-// Developer IO utility:
-//
-#include "io.h"
-#include "ply.h"
-
-// Developer option:
-// epsilon evaluation
-//
-#define RENDER 1
-#define CLUSTER 1
-#define SEGMENT 1
-#define COMPUTE_EPSILON 1
+// #include "io.h"
+// #include "ply.h"
 
 // Developer option:
 // log tracing
@@ -41,7 +30,7 @@ void Intact::adapt()
     std::vector<Point> points;
     {
         std::lock_guard<std::mutex> lck(m_mutex);
-        points = *sptr_points;
+        points = *sptr_rawPoints;
     }
     std::pair<std::vector<float>, std::vector<uint8_t>> pcl
         = cast::toPcl(points);
@@ -52,16 +41,34 @@ void Intact::adapt()
     *sptr_regionColor = pcl.second;
 }
 
-void Intact::setPoints(const std::vector<Point>& points)
+void Intact::setRawPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_points = points;
+    *sptr_rawPoints = points;
+}
+
+void Intact::setSegmentPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_segmentPoints = points;
+}
+
+void Intact::setClusterPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_clusterPoints = points;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getPoints()
 {
     std::shared_lock lock(s_mutex);
-    return sptr_points;
+    return sptr_rawPoints;
+}
+
+int Intact::getNumPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return m_numPoints;
 }
 
 std::shared_ptr<std::vector<float>> Intact::getRaw()
@@ -74,6 +81,14 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getRawColor()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_rawColor;
+}
+
+void Intact::setSegment(
+    std::pair<std::vector<float>, std::vector<uint8_t>>& segment)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_segment = segment.first;
+    *sptr_segmentColor = segment.second;
 }
 
 std::shared_ptr<std::vector<float>> Intact::getSegment()
@@ -118,6 +133,48 @@ void Intact::raiseEpsilonFlag()
     *sptr_isEpsilonComputed = true;
 }
 
+void Intact::raiseRunFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_run = true;
+}
+
+void Intact::raiseStopFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_stop = true;
+}
+
+void Intact::stop()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_run = false;
+}
+
+bool Intact::isRun()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_run;
+}
+
+bool Intact::isStop()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_stop;
+}
+
+void Intact::raiseIntactReadyFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_isIntactReady = true;
+}
+
+bool Intact::isIntactReady()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_isIntactReady;
+}
+
 bool Intact::isSegmented()
 {
     std::shared_lock lock(s_mutex);
@@ -136,37 +193,34 @@ bool Intact::isEpsilonComputed()
     return *sptr_isEpsilonComputed;
 }
 
+#define SEGMENT 1
 void Intact::segment(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
 #if SEGMENT
-    /** capture point cloud using rgb-depth transformation */
-    sptr_kinect->record(RGB_TO_DEPTH);
-    bool firstRun = true;
+    bool init = true;
+    while (!sptr_intact->isIntactReady()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
 
-    while (RUN_SYSTEM) {
-
-        /** parse point cloud data into <Point> type */
-        std::vector<Point> points = cast::toPoint(*sptr_kinect->getPcl(),
-            *sptr_kinect->getColor(), sptr_kinect->m_numPoints);
+    while (sptr_intact->isRun()) {
+        /** cast point cloud to Point type definition for processing */
+        std::vector<Point> points = cast::toPoint(*sptr_intact->getRaw(),
+            *sptr_intact->getRawColor(), sptr_intact->getNumPoints());
+        sptr_intact->setRawPoints(points); // <- update raw points
 
         /** segment tabletop interaction context ~15ms */
         std::vector<Point> seg = region::segment(points);
-        sptr_intact->setPoints(seg);
+        std::pair<Point, Point> boundary = region::queryBoundary(seg);
+        setBoundary(boundary);
+        sptr_intact->setSegmentPoints(seg); // <- update segment points
 
         /** update flow control semaphores */
-        if (firstRun) {
-            firstRun = false;
+        if (init) {
+            init = false;
             sptr_intact->raiseSegFlag();
             TRACE("-- context segmented"); /*NOLINT*/
         }
-
-        /** query interaction context boundary */
-        std::pair<Point, Point> contextBoundary = region::queryBoundary(seg);
-
-        /** register interaction context */
-        sptr_kinect->setContextBounds(contextBoundary);
-
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 #endif
@@ -202,6 +256,7 @@ void writeKnn(std::vector<float>& knnQuery)
 #endif
 }
 
+#define COMPUTE_EPSILON 0
 void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 {
 #if COMPUTE_EPSILON
@@ -242,6 +297,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points)
 #endif
 
+#define CLUSTER 0
 void Intact::cluster(
     const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
 {
@@ -283,31 +339,12 @@ void Intact::cluster(
 #endif
 }
 
-// Developer options:
-// option (1) render segment
-// option (2) render clusters
-// todo: option (3) render unmodified point cloud
-// todo: option (4) interactive rendering for individual objects
-//
-#define RENDER_SEGMENTED 1
-#define RENDER_CLUSTERED 0
-
 void Intact::render(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
-#if RENDER
-#if RENDER_SEGMENTED
-    /** render interaction context in real-time (un-clustered)  */
-    viewer::draw(sptr_kinect);
-#endif
-    /** wait for epsilon value */
-    while (!sptr_intact->isClustered()) {
+    while (!sptr_intact->isIntactReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
-
-#if RENDER_CLUSTERED
-    /** render interaction context in real-time (clustered)  */
+    /** render context in real-time (un-clustered)  */
     viewer::draw(sptr_intact, sptr_kinect);
-#endif
-#endif
 }
