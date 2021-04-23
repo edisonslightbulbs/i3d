@@ -8,6 +8,7 @@
 #include "kinect.h"
 #include "knn.h"
 #include "logger.h"
+#include "object.h"
 #include "region.h"
 #include "timer.h"
 #include "viewer.h"
@@ -55,12 +56,6 @@ void Intact::setContextPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_points = points;
-}
-
-void Intact::setNumClusters(const int& clusters)
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_numClusters = clusters;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getPoints()
@@ -233,17 +228,24 @@ void Intact::cluster(
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
 
-        /** cluster segmented interaction context ~130ms/ loop run-through */
-        std::vector<Point> points;
-        std::pair<std::vector<Point>, int> clusteredContext;
         bool firstRun = true;
+        /** n.b., clustering loop takes ~130ms per iteration */
         while (RUN_SYSTEM) {
-            points = *sptr_intact->getPoints();
-            clusteredContext = dbscan::cluster(points, E, N);
-            sptr_intact->setContextPoints(clusteredContext.first);
-            sptr_intact->setNumClusters(clusteredContext.second);
+
+            /** cluster segmented context ~130ms/loop iteration */
+            std::vector<std::vector<Point>> clusters
+                = dbscan::cluster(*sptr_intact->getPoints(), E, N);
+
+            /** create objects using density clusters */
+            std::vector<Object> objects;
+            for (auto& cluster : clusters) {
+                Object object(cluster);
+                objects.emplace_back(object);
+            }
+
+            /** preprocess points for rendering */
+            sptr_intact->setContextPoints(objects[0].m_points);
             sptr_intact->adapt();
-            TRACE("-- context points clustered and synchronized"); /*NOLINT*/
 
             if (firstRun) {
                 firstRun = false;
@@ -252,7 +254,7 @@ void Intact::cluster(
                     *sptr_intact->getPoints()); /*NOLINT*/
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 #endif
 }
