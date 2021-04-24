@@ -25,10 +25,15 @@ public:
     std::shared_ptr<std::vector<uint8_t>> sptr_segmentColor = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_segmentPoints = nullptr;
 
-    /** segment region */
+    /** region */
     std::shared_ptr<std::vector<float>> sptr_region = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_regionColor = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_regionPoints = nullptr;
+
+    /** object */
+    std::shared_ptr<std::vector<float>> sptr_object = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_objectColor = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_objectPoints = nullptr;
 
     /** mutual exclusion */
     std::mutex m_mutex;
@@ -43,25 +48,11 @@ public:
     std::shared_ptr<bool> sptr_isContextSegmented;
 
     std::pair<Point, Point> m_segmentBound {};
-    std::pair<Point, Point> m_regionBound {};
-    std::pair<Point, Point> m_objectBound {};
 
     void setSegmentBoundary(std::pair<Point, Point>& boundary)
     {
         std::lock_guard<std::mutex> lck(m_mutex);
         m_segmentBound = boundary;
-    }
-
-    void setRegionBoundary(std::pair<Point, Point>& boundary)
-    {
-        std::lock_guard<std::mutex> lck(m_mutex);
-        m_regionBound = boundary;
-    }
-
-    void setObjectBoundary(std::pair<Point, Point>& boundary)
-    {
-        std::lock_guard<std::mutex> lck(m_mutex);
-        m_objectBound = boundary;
     }
 
     /** initialize API */
@@ -73,8 +64,6 @@ public:
         Point upper(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 
         m_segmentBound = { lower, upper };
-        m_regionBound = { lower, upper };
-        m_objectBound = { lower, upper };
 
         sptr_run = std::make_shared<bool>(false);
         sptr_stop = std::make_shared<bool>(false);
@@ -85,21 +74,38 @@ public:
 
         sptr_raw = std::make_shared<std::vector<float>>(m_numPoints * 3);
         sptr_rawColor = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+        sptr_rawPoints = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
         sptr_segment = std::make_shared<std::vector<float>>(m_numPoints * 3);
         sptr_segmentColor
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+        sptr_segmentPoints
+            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
         sptr_region = std::make_shared<std::vector<float>>(m_numPoints * 3);
         sptr_regionColor
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-
-        sptr_rawPoints = std::make_shared<std::vector<Point>>(m_numPoints * 3);
-        sptr_segmentPoints
-            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
         sptr_regionPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+
+        sptr_object = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_objectColor
+            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+        sptr_objectPoints
+            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
     }
+
+    /**
+     * buildPcl
+     *   Builds point cloud in real-time.
+     *
+     * @param pcl
+     *   Point cloud data from kinect.
+     *
+     * @param transformedImage
+     *   RGB to DEPTH (transformed) image from kinect.
+     */
+    void buildPcl(k4a_image_t pcl, k4a_image_t transformedImage);
 
     /**
      * segment
@@ -154,141 +160,78 @@ public:
     static void estimateEpsilon(
         const int& K, std::shared_ptr<Intact>& sptr_intact);
 
-    /**
-     * adapt
-     *  Adapts std::vector<Point> to point cloud.
-     */
-    void adapt();
+    /** Thread-safe setters */
+    void setObject(const std::vector<float>& points);
 
-    /** Setters. */
+    void setRegion(const std::vector<float>& points);
+
     void setRawPoints(const std::vector<Point>& points);
 
-    /** Getters. */
-    std::shared_ptr<std::vector<Point>> getRawPoints();
+    void setObjectColor(const std::vector<uint8_t>& color);
+
+    void setObjectPoints(const std::vector<Point>& points);
+
+    void setRegionPoints(const std::vector<Point>& points);
+
+    void setRegionColor(const std::vector<uint8_t>& color);
+
+    void setSegmentPoints(const std::vector<Point>& points);
+
+    void setSegment(
+        std::pair<std::vector<float>, std::vector<uint8_t>>& segment);
+
+    /** Thread-safe getters */
+
+    int getNumPoints();
 
     std::shared_ptr<std::vector<float>> getRaw();
 
+    std::shared_ptr<std::vector<float>> getRegion();
+
     std::shared_ptr<std::vector<float>> getSegment();
 
-    std::shared_ptr<std::vector<float>> getRegion();
+    std::shared_ptr<std::vector<Point>> getRawPoints();
 
     std::shared_ptr<std::vector<uint8_t>> getRawColor();
 
-    std::shared_ptr<std::vector<uint8_t>> getSegmentColor();
+    std::shared_ptr<std::vector<Point>> getRegionPoints();
 
     std::shared_ptr<std::vector<uint8_t>> getRegionColor();
 
-    /** Thread-safe semaphores */
-    bool isIntactReady();
+    std::shared_ptr<std::vector<Point>> getSegmentPoints();
+
+    std::shared_ptr<std::vector<uint8_t>> getSegmentColor();
+
+    /** Thread-safe semaphore queries */
+    bool isRun();
+
+    bool isStop();
 
     bool isSegmented();
 
     bool isClustered();
 
-    void raiseSegmentedFlag();
-
-    void raiseClusteredFlag();
-
-    void raiseEpsilonFlag();
+    bool isIntactReady();
 
     bool isEpsilonComputed();
 
-    void buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
-    {
-        auto* data = (int16_t*)(void*)k4a_image_get_buffer(pcl);
-        uint8_t* color = k4a_image_get_buffer(transformedImage);
-
-        std::vector<float> raw(m_numPoints * 3);
-        std::vector<uint8_t> rawColor(m_numPoints * 3);
-
-        std::vector<float> segment(m_numPoints * 3);
-        std::vector<uint8_t> segmentColor(m_numPoints * 3);
-
-        std::vector<float> region(m_numPoints * 3);
-        std::vector<uint8_t> regionColor(m_numPoints * 3);
-
-        /** n.b., kinect colors reversed! */
-        for (int i = 0; i < m_numPoints; i++) {
-            if (data[3 * i + 2] == 0) {
-                raw[3 * i + 0] = 0.0f;
-                raw[3 * i + 1] = 0.0f;
-                raw[3 * i + 2] = 0.0f;
-                rawColor[3 * i + 2] = color[4 * i + 0];
-                rawColor[3 * i + 1] = color[4 * i + 1];
-                rawColor[3 * i + 0] = color[4 * i + 2];
-                continue;
-            }
-            raw[3 * i + 0] = (float)data[3 * i + 0];
-            raw[3 * i + 1] = (float)data[3 * i + 1];
-            raw[3 * i + 2] = (float)data[3 * i + 2];
-            rawColor[3 * i + 2] = color[4 * i + 0];
-            rawColor[3 * i + 1] = color[4 * i + 1];
-            rawColor[3 * i + 0] = color[4 * i + 2];
-
-            /** filter segment boundary */
-            if (m_segmentBound.second.m_xyz[2] == __FLT_MAX__
-                || m_segmentBound.first.m_xyz[2] == __FLT_MIN__) {
-                continue;
-            }
-
-            if ((float)data[3 * i + 0] > m_segmentBound.second.m_xyz[0]
-                || (float)data[3 * i + 0] < m_segmentBound.first.m_xyz[0]
-                || (float)data[3 * i + 1] > m_segmentBound.second.m_xyz[1]
-                || (float)data[3 * i + 1] < m_segmentBound.first.m_xyz[1]
-                || (float)data[3 * i + 2] > m_segmentBound.second.m_xyz[2]
-                || (float)data[3 * i + 2] < m_segmentBound.first.m_xyz[2]) {
-                continue;
-            }
-            segment[3 * i + 0] = (float)data[3 * i + 0];
-            segment[3 * i + 1] = (float)data[3 * i + 1];
-            segment[3 * i + 2] = (float)data[3 * i + 2];
-            segmentColor[3 * i + 2] = color[4 * i + 0];
-            segmentColor[3 * i + 1] = color[4 * i + 1];
-            segmentColor[3 * i + 0] = color[4 * i + 2];
-        }
-
-        /** thread-safe update pcl data for rendering */
-        std::lock_guard<std::mutex> lck(m_mutex);
-        *sptr_raw = raw;
-        *sptr_rawColor = rawColor;
-
-        if (m_segmentBound.second.m_xyz[2] == __FLT_MAX__
-            || m_segmentBound.first.m_xyz[2] == __FLT_MIN__) {
-            *sptr_segment = *sptr_raw;
-            *sptr_segmentColor = *sptr_rawColor;
-        } else {
-            *sptr_segment = segment;
-            *sptr_segmentColor = segmentColor;
-        }
-    }
-
-    void raiseIntactReadyFlag();
-
-    int getNumPoints();
-
-    bool isRun();
+    /** Thread-safe semaphore control */
+    void stop();
 
     void raiseRunFlag();
 
     void raiseStopFlag();
 
-    bool isStop();
+    void raiseEpsilonFlag();
 
-    void stop();
+    void raiseSegmentedFlag();
 
-    void setSegment(
-        std::pair<std::vector<float>, std::vector<uint8_t>>& segment);
+    void raiseClusteredFlag();
 
-    std::shared_ptr<std::vector<Point>> getRegionPoints();
+    void raiseIntactReadyFlag();
 
-    void setRegionPoints(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<float>> getObject();
 
-    void setSegmentPoints(const std::vector<Point>& points);
-
-    std::shared_ptr<std::vector<Point>> getSegmentPoints();
-
-    void setRegion(const std::vector<float>& points);
-
-    void setRegionColor(const std::vector<uint8_t>& color);
+    std::shared_ptr<std::vector<uint8_t>> getObjectColor();
 };
 #endif /* INTACT_H */
