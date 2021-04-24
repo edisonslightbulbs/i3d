@@ -5,15 +5,15 @@
 #include "cast.h"
 #include "dbscan.h"
 #include "intact.h"
+#include "io.h"
 #include "kinect.h"
 #include "knn.h"
 #include "logger.h"
 #include "object.h"
+#include "ply.h"
 #include "region.h"
 #include "timer.h"
 #include "viewer.h"
-// #include "io.h"
-// #include "ply.h"
 
 // Developer option:
 // log tracing
@@ -41,6 +41,29 @@ void Intact::adapt()
     *sptr_regionColor = pcl.second;
 }
 
+void Intact::setRegionPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_regionPoints = points;
+}
+
+void Intact::setRegion(const std::vector<float>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_region = points;
+}
+void Intact::setRegionColor(const std::vector<uint8_t>& color)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_regionColor = color;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getRegionPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return sptr_regionPoints;
+}
+
 void Intact::setRawPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
@@ -53,16 +76,16 @@ void Intact::setSegmentPoints(const std::vector<Point>& points)
     *sptr_segmentPoints = points;
 }
 
-void Intact::setClusterPoints(const std::vector<Point>& points)
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clusterPoints = points;
-}
-
-std::shared_ptr<std::vector<Point>> Intact::getPoints()
+std::shared_ptr<std::vector<Point>> Intact::getRawPoints()
 {
     std::shared_lock lock(s_mutex);
     return sptr_rawPoints;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return sptr_segmentPoints;
 }
 
 int Intact::getNumPoints()
@@ -115,13 +138,13 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getRegionColor()
     return sptr_regionColor;
 }
 
-void Intact::raiseSegFlag()
+void Intact::raiseSegmentedFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_isContextSegmented = true;
 }
 
-void Intact::raiseClustFlag()
+void Intact::raiseClusteredFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_isContextClustered = true;
@@ -212,13 +235,13 @@ void Intact::segment(
         /** segment tabletop interaction context ~15ms */
         std::vector<Point> seg = region::segment(points);
         std::pair<Point, Point> boundary = region::queryBoundary(seg);
-        setBoundary(boundary);
+        setSegmentBoundary(boundary);
         sptr_intact->setSegmentPoints(seg); // <- update segment points
 
         /** update flow control semaphores */
         if (init) {
             init = false;
-            sptr_intact->raiseSegFlag();
+            sptr_intact->raiseSegmentedFlag();
             TRACE("-- context segmented"); /*NOLINT*/
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -229,7 +252,7 @@ void Intact::segment(
 // Developer option:
 // print knn results
 //
-#define PRINT_KNN 0
+#define PRINT_KNN 1
 void printKnn(int& i, std::vector<std::pair<Point, float>>& nn)
 {
 #if PRINT_KNN == 1
@@ -256,7 +279,7 @@ void writeKnn(std::vector<float>& knnQuery)
 #endif
 }
 
-#define COMPUTE_EPSILON 0
+#define COMPUTE_EPSILON 1
 void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 {
 #if COMPUTE_EPSILON
@@ -266,7 +289,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
     }
 
     TRACE("-- evaluating k nearest neighbours"); /*NOLINT*/
-    std::vector<Point> points = *sptr_intact->getPoints();
+    std::vector<Point> points = *sptr_intact->getSegmentPoints();
 
     const int testVal = 3;
     // testVal used for arbitrary test for release, use
@@ -297,7 +320,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points)
 #endif
 
-#define CLUSTER 0
+#define CLUSTER 1
 void Intact::cluster(
     const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
 {
@@ -308,33 +331,36 @@ void Intact::cluster(
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
 
-        bool firstRun = true;
+        bool init = true;
         /** n.b., clustering loop takes ~130ms per iteration */
-        while (RUN_SYSTEM) {
+        while (sptr_intact->isRun()) {
 
             /** cluster segmented context ~130ms/loop iteration */
             std::vector<std::vector<Point>> clusters
-                = dbscan::cluster(*sptr_intact->getPoints(), E, N);
+                = dbscan::cluster(*sptr_intact->getSegmentPoints(), E, N);
 
-            /** create objects using density clusters */
+            /** create objects using view clusters */
             std::vector<Object> objects;
             for (auto& cluster : clusters) {
                 Object object(cluster);
                 objects.emplace_back(object);
             }
 
-            /** preprocess points for rendering */
-            sptr_intact->setPoints(objects[0].m_points);
-            sptr_intact->adapt();
+            /** cast points for rendering */
+            std::pair<std::vector<float>, std::vector<uint8_t>> region
+                = cast::toClusteredPcl(objects.back().m_points);
+            sptr_intact->setRegion(region.first);
+            sptr_intact->setRegionColor(region.second);
+            sptr_intact->setRegionPoints(objects.back().m_points);
 
-            if (firstRun) {
-                firstRun = false;
-                sptr_intact->raiseClustFlag();
+            if (init) {
+                init = false;
                 WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
-                    *sptr_intact->getPoints()); /*NOLINT*/
+                    *sptr_intact->getRegionPoints()); /*NOLINT*/
+                sptr_intact->raiseClusteredFlag();
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 #endif
 }
