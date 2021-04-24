@@ -25,26 +25,86 @@
 #define TRACE
 #endif
 
-void Intact::adapt()
+// number of point-cloud points form kinect
+//
+int Intact::getNumPoints()
 {
-    std::vector<Point> points;
-    {
-        std::lock_guard<std::mutex> lck(m_mutex);
-        points = *sptr_rawPoints;
-    }
-    std::pair<std::vector<float>, std::vector<uint8_t>> pcl
-        = cast::toPcl(points);
-
-    /** safely update context */
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_region = pcl.first;
-    *sptr_regionColor = pcl.second;
+    std::shared_lock lock(s_mutex);
+    return m_numPoints;
 }
 
-void Intact::setRegionPoints(const std::vector<Point>& points)
+// raw point cloud thread-safe setters and getters
+//
+std::shared_ptr<std::vector<float>> Intact::getRaw()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_regionPoints = points;
+    return sptr_raw;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getRawColor()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_rawColor;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getRawPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return sptr_rawPoints;
+}
+
+void Intact::setRawPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_rawPoints = points;
+}
+
+// interaction context thread-safe setters and getters
+//
+std::shared_ptr<std::vector<float>> Intact::getSegment()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_segment;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentColor()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_segmentColor;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return sptr_segmentPoints;
+}
+
+void Intact::setSegment(
+    std::pair<std::vector<float>, std::vector<uint8_t>>& segment)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_segment = segment.first;
+    *sptr_segmentColor = segment.second;
+}
+
+void Intact::setSegmentPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_segmentPoints = points;
+}
+
+// point cloud density region thread-safe setters and getters
+//
+std::shared_ptr<std::vector<float>> Intact::getRegion()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_region;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getRegionColor()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_regionColor;
 }
 
 void Intact::setRegion(const std::vector<float>& points)
@@ -58,86 +118,51 @@ void Intact::setRegionColor(const std::vector<uint8_t>& color)
     *sptr_regionColor = color;
 }
 
+void Intact::setRegionPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_regionPoints = points;
+}
+
 std::shared_ptr<std::vector<Point>> Intact::getRegionPoints()
 {
     std::shared_lock lock(s_mutex);
     return sptr_regionPoints;
 }
 
-void Intact::setRawPoints(const std::vector<Point>& points)
+// object point cloud  thread-safe setters and getters
+//
+void Intact::setObject(const std::vector<float>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_rawPoints = points;
+    *sptr_object = points;
 }
-
-void Intact::setSegmentPoints(const std::vector<Point>& points)
+void Intact::setObjectColor(const std::vector<uint8_t>& color)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentPoints = points;
+    *sptr_objectColor = color;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getRawPoints()
-{
-    std::shared_lock lock(s_mutex);
-    return sptr_rawPoints;
-}
-
-std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
-{
-    std::shared_lock lock(s_mutex);
-    return sptr_segmentPoints;
-}
-
-int Intact::getNumPoints()
-{
-    std::shared_lock lock(s_mutex);
-    return m_numPoints;
-}
-
-std::shared_ptr<std::vector<float>> Intact::getRaw()
+void Intact::setObjectPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_raw;
+    *sptr_objectPoints = points;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getRawColor()
+std::shared_ptr<std::vector<float>> Intact::getObject()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_rawColor;
+    return sptr_object;
 }
 
-void Intact::setSegment(
-    std::pair<std::vector<float>, std::vector<uint8_t>>& segment)
+std::shared_ptr<std::vector<uint8_t>> Intact::getObjectColor()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segment = segment.first;
-    *sptr_segmentColor = segment.second;
+    return sptr_objectColor;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getSegment()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segment;
-}
-
-std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentColor()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentColor;
-}
-
-std::shared_ptr<std::vector<float>> Intact::getRegion()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_region;
-}
-
-std::shared_ptr<std::vector<uint8_t>> Intact::getRegionColor()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_regionColor;
-}
-
+// cross-thread semaphores
+//
 void Intact::raiseSegmentedFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
@@ -214,6 +239,75 @@ bool Intact::isEpsilonComputed()
 {
     std::shared_lock lock(s_mutex);
     return *sptr_isEpsilonComputed;
+}
+
+void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
+{
+    auto* data = (int16_t*)(void*)k4a_image_get_buffer(pcl);
+    uint8_t* color = k4a_image_get_buffer(transformedImage);
+
+    std::vector<float> raw(m_numPoints * 3);
+    std::vector<uint8_t> rawColor(m_numPoints * 3);
+
+    std::vector<float> segment(m_numPoints * 3);
+    std::vector<uint8_t> segmentColor(m_numPoints * 3);
+
+    std::vector<float> region(m_numPoints * 3);
+    std::vector<uint8_t> regionColor(m_numPoints * 3);
+
+    /** n.b., kinect colors reversed! */
+    for (int i = 0; i < m_numPoints; i++) {
+        if (data[3 * i + 2] == 0) {
+            raw[3 * i + 0] = 0.0f;
+            raw[3 * i + 1] = 0.0f;
+            raw[3 * i + 2] = 0.0f;
+            rawColor[3 * i + 2] = color[4 * i + 0];
+            rawColor[3 * i + 1] = color[4 * i + 1];
+            rawColor[3 * i + 0] = color[4 * i + 2];
+            continue;
+        }
+        raw[3 * i + 0] = (float)data[3 * i + 0];
+        raw[3 * i + 1] = (float)data[3 * i + 1];
+        raw[3 * i + 2] = (float)data[3 * i + 2];
+        rawColor[3 * i + 2] = color[4 * i + 0];
+        rawColor[3 * i + 1] = color[4 * i + 1];
+        rawColor[3 * i + 0] = color[4 * i + 2];
+
+        /** filter segment boundary */
+        if (m_segmentBound.second.m_xyz[2] == __FLT_MAX__
+            || m_segmentBound.first.m_xyz[2] == __FLT_MIN__) {
+            continue;
+        }
+
+        if ((float)data[3 * i + 0] > m_segmentBound.second.m_xyz[0]
+            || (float)data[3 * i + 0] < m_segmentBound.first.m_xyz[0]
+            || (float)data[3 * i + 1] > m_segmentBound.second.m_xyz[1]
+            || (float)data[3 * i + 1] < m_segmentBound.first.m_xyz[1]
+            || (float)data[3 * i + 2] > m_segmentBound.second.m_xyz[2]
+            || (float)data[3 * i + 2] < m_segmentBound.first.m_xyz[2]) {
+            continue;
+        }
+        segment[3 * i + 0] = (float)data[3 * i + 0];
+        segment[3 * i + 1] = (float)data[3 * i + 1];
+        segment[3 * i + 2] = (float)data[3 * i + 2];
+        segmentColor[3 * i + 2] = color[4 * i + 0];
+        segmentColor[3 * i + 1] = color[4 * i + 1];
+        segmentColor[3 * i + 0] = color[4 * i + 2];
+    }
+
+    /** thread-safe update pcl data for rendering */
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_raw = raw;
+    *sptr_rawColor = rawColor;
+
+    if (m_segmentBound.second.m_xyz[2] == __FLT_MAX__
+        || m_segmentBound.first.m_xyz[2] == __FLT_MIN__) {
+        *sptr_segment = *sptr_raw;
+        *sptr_segmentColor = *sptr_rawColor;
+    } else {
+        *sptr_segment = segment;
+        *sptr_segmentColor = segmentColor;
+    }
 }
 
 #define SEGMENT 1
@@ -313,7 +407,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 // Developer option:
 // write segmented context to ply file
 //
-#define WRITE_PLY_FILE 1
+#define WRITE_PLY_FILE 0
 #if WRITE_PLY_FILE == 1
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points) ply::write(points)
 #else
@@ -346,13 +440,21 @@ void Intact::cluster(
                 objects.emplace_back(object);
             }
 
-            /** cast points for rendering */
+            /** cast region points to pcl format  for rendering */
             std::pair<std::vector<float>, std::vector<uint8_t>> region
                 = cast::toClusteredPcl(objects.back().m_points);
             sptr_intact->setRegion(region.first);
             sptr_intact->setRegionColor(region.second);
             sptr_intact->setRegionPoints(objects.back().m_points);
 
+            /** cast object points to pcl format  for rendering */
+            std::pair<std::vector<float>, std::vector<uint8_t>> object
+                = cast::toClusteredPcl(objects.front().m_points);
+            sptr_intact->setObject(object.first);
+            sptr_intact->setObjectColor(object.second);
+            sptr_intact->setObjectPoints(objects.front().m_points);
+
+            /** sequence cross thread semaphore */
             if (init) {
                 init = false;
                 WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
