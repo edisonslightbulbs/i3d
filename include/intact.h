@@ -42,7 +42,8 @@ public:
     /** flow-control semaphores */
     std::shared_ptr<bool> sptr_run;
     std::shared_ptr<bool> sptr_stop;
-    std::shared_ptr<bool> sptr_isIntactReady;
+    std::shared_ptr<bool> sptr_isCalibrated;
+    std::shared_ptr<bool> sptr_isKinectReady;
     std::shared_ptr<bool> sptr_isContextClustered;
     std::shared_ptr<bool> sptr_isEpsilonComputed;
     std::shared_ptr<bool> sptr_isContextSegmented;
@@ -67,10 +68,11 @@ public:
 
         sptr_run = std::make_shared<bool>(false);
         sptr_stop = std::make_shared<bool>(false);
+        sptr_isCalibrated = std::make_shared<bool>(false);
+        sptr_isKinectReady = std::make_shared<bool>(false);
         sptr_isEpsilonComputed = std::make_shared<bool>(false);
         sptr_isContextClustered = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
-        sptr_isIntactReady = std::make_shared<bool>(false);
 
         sptr_raw = std::make_shared<std::vector<float>>(m_numPoints * 3);
         sptr_rawColor = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
@@ -119,6 +121,10 @@ public:
      */
     void segment(std::shared_ptr<Kinect>& sptr_kinect,
         std::shared_ptr<Intact>& sptr_intact);
+
+    static void calibrate(std::shared_ptr<Kinect>& sptr_kinect,
+        std::shared_ptr<Intact>& sptr_intact);
+
     /**
      * render
      *   Renders point cloud.
@@ -209,9 +215,11 @@ public:
 
     bool isSegmented();
 
+    bool isCalibrated();
+
     bool isClustered();
 
-    bool isIntactReady();
+    bool isKinectReady();
 
     bool isEpsilonComputed();
 
@@ -222,13 +230,15 @@ public:
 
     void raiseStopFlag();
 
+    void raiseCalibratedFlag();
+
     void raiseEpsilonFlag();
 
     void raiseSegmentedFlag();
 
     void raiseClusteredFlag();
 
-    void raiseIntactReadyFlag();
+    void raiseKinectReadyFlag();
 
     std::shared_ptr<std::vector<float>> getObject();
 
