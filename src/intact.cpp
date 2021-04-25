@@ -211,16 +211,16 @@ bool Intact::isStop()
     return *sptr_stop;
 }
 
-void Intact::raiseIntactReadyFlag()
+void Intact::raiseKinectReadyFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_isIntactReady = true;
+    *sptr_isKinectReady = true;
 }
 
-bool Intact::isIntactReady()
+bool Intact::isKinectReady()
 {
     std::shared_lock lock(s_mutex);
-    return *sptr_isIntactReady;
+    return *sptr_isKinectReady;
 }
 
 bool Intact::isSegmented()
@@ -239,6 +239,18 @@ bool Intact::isEpsilonComputed()
 {
     std::shared_lock lock(s_mutex);
     return *sptr_isEpsilonComputed;
+}
+
+bool Intact::isCalibrated()
+{
+    std::shared_lock lock(s_mutex);
+    return *sptr_isCalibrated;
+}
+
+void Intact::raiseCalibratedFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_isCalibrated = true;
 }
 
 void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
@@ -310,13 +322,13 @@ void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
     }
 }
 
-#define SEGMENT 1
+#define SEGMENT 0
 void Intact::segment(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
-#if SEGMENT
+#if SEGMENT == 1
     bool init = true;
-    while (!sptr_intact->isIntactReady()) {
+    while (!sptr_intact->isKinectReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
@@ -343,10 +355,34 @@ void Intact::segment(
 #endif
 }
 
+#define CALIBRATE 1
+#define log LOG(INFO) <<
+void Intact::calibrate(
+    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
+{
+#if CALIBRATE == 1
+    while (!sptr_intact->isKinectReady()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    bool init = true;
+    /** update flow control semaphores */
+    while (sptr_intact->isRun()) {
+        if (init) {
+            init = false;
+            sptr_intact->raiseCalibratedFlag();
+            TRACE("-- context segmented"); /*NOLINT*/
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    std::cout << "well we sure as shit are calibrating now !!" << std::endl;
+#endif
+}
+
 // Developer option:
 // print knn results
 //
-#define PRINT_KNN 1
+#define PRINT_KNN 0
 void printKnn(int& i, std::vector<std::pair<Point, float>>& nn)
 {
 #if PRINT_KNN == 1
@@ -373,7 +409,7 @@ void writeKnn(std::vector<float>& knnQuery)
 #endif
 }
 
-#define COMPUTE_EPSILON 1
+#define COMPUTE_EPSILON 0
 void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 {
 #if COMPUTE_EPSILON
@@ -414,7 +450,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points)
 #endif
 
-#define CLUSTER 1
+#define CLUSTER 0
 void Intact::cluster(
     const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
 {
@@ -467,12 +503,15 @@ void Intact::cluster(
 #endif
 }
 
+#define RENDER 0
 void Intact::render(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
+#if RENDER == 1
     while (!sptr_intact->isIntactReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     /** render context in real-time (un-clustered)  */
     viewer::draw(sptr_intact, sptr_kinect);
+#endif
 }
