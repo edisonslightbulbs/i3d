@@ -1,7 +1,9 @@
 #include <chrono>
+#include <opencv2/core.hpp>
 #include <thread>
 #include <utility>
 
+#include "calibration.h"
 #include "cast.h"
 #include "dbscan.h"
 #include "intact.h"
@@ -322,7 +324,7 @@ void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
     }
 }
 
-#define SEGMENT 0
+#define SEGMENT 1
 void Intact::segment(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
@@ -355,28 +357,45 @@ void Intact::segment(
 #endif
 }
 
-#define CALIBRATE 1
-#define log LOG(INFO) <<
 void Intact::calibrate(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
-#if CALIBRATE == 1
     while (!sptr_intact->isKinectReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
-    bool init = true;
-    /** update flow control semaphores */
-    while (sptr_intact->isRun()) {
-        if (init) {
-            init = false;
-            sptr_intact->raiseCalibratedFlag();
-            TRACE("-- context segmented"); /*NOLINT*/
-        }
+    cv::Mat distanceCoefficients;
+    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    std::cout << "well we sure as shit are calibrating now !!" << std::endl;
+    // todo: move user specification to interface
+    const float arucoSquareEdgeLength = 0.0565f;        // in meters
+    const float calibrationSquareEdgeLength = 0.02500f; // in meters
+    const std::string calibrationFile
+        = "calibration.txt"; // external file for saving calibration
+
+#define CALIBRATE 0
+#if CALIBRATE == 1
+    /** 1st calibrate the camera */
+    calibration::startChessBoardCalibration(cameraMatrix, distanceCoefficients);
+    // This operation will loop infinitely until calibration
+    // images have been taken! take at least 20 images of the
+    // chessboard. A criteria for good calibration images is variable
+    // chessboard poses equally across all 6 degrees of freedom.
+    //
+
+    /** grace window for writing calibration file */
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 #endif
+
+#define FIND_ARUCO 0
+#if FIND_ARUCO == 1
+    /** load the calibration */
+    calibration::importCalibration(
+        "calibration.txt", cameraMatrix, distanceCoefficients);
+
+    /** detect aruco markers */
+    calibration::findArucoMarkers(cameraMatrix, distanceCoefficients);
+#endif
+    std::cout << "-- calibration done!!" << std::endl;
 }
 
 // Developer option:
@@ -409,7 +428,7 @@ void writeKnn(std::vector<float>& knnQuery)
 #endif
 }
 
-#define COMPUTE_EPSILON 0
+#define COMPUTE_EPSILON 1
 void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 {
 #if COMPUTE_EPSILON
@@ -450,7 +469,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points)
 #endif
 
-#define CLUSTER 0
+#define CLUSTER 1
 void Intact::cluster(
     const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
 {
@@ -503,12 +522,12 @@ void Intact::cluster(
 #endif
 }
 
-#define RENDER 0
+#define RENDER 1
 void Intact::render(
     std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
 {
 #if RENDER == 1
-    while (!sptr_intact->isIntactReady()) {
+    while (!sptr_intact->isKinectReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     /** render context in real-time (un-clustered)  */
