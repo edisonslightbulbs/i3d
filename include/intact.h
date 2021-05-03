@@ -119,8 +119,7 @@ public:
      * @param sptr_intact
      *   Instance of API call.
      */
-    void segment(std::shared_ptr<Kinect>& sptr_kinect,
-        std::shared_ptr<Intact>& sptr_intact);
+    void segment(std::shared_ptr<Intact>& sptr_intact);
 
     static void calibrate(std::shared_ptr<Intact>& sptr_intact);
 

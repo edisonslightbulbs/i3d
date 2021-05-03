@@ -325,8 +325,7 @@ void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
 }
 
 #define SEGMENT 1
-void Intact::segment(
-    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
+void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 {
 #if SEGMENT == 1
     bool init = true;
