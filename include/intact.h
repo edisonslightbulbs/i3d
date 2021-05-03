@@ -96,19 +96,6 @@ public:
         sptr_objectPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
     }
-
-    /**
-     * buildPcl
-     *   Builds point cloud in real-time.
-     *
-     * @param pcl
-     *   Point cloud data from kinect.
-     *
-     * @param transformedImage
-     *   RGB to DEPTH (transformed) image from kinect.
-     */
-    void buildPcl(k4a_image_t pcl, k4a_image_t transformedImage);
-
     /**
      * segment
      *   Segments context.
