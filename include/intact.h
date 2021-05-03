@@ -48,12 +48,12 @@ public:
     std::shared_ptr<bool> sptr_isEpsilonComputed;
     std::shared_ptr<bool> sptr_isContextSegmented;
 
-    std::pair<Point, Point> m_segmentBound {};
+    std::pair<Point, Point> m_segmentBoundary {};
 
     void setSegmentBoundary(std::pair<Point, Point>& boundary)
     {
         std::lock_guard<std::mutex> lck(m_mutex);
-        m_segmentBound = boundary;
+        m_segmentBoundary = boundary;
     }
 
     /** initialize API */
@@ -64,7 +64,7 @@ public:
         Point lower(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
         Point upper(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 
-        m_segmentBound = { lower, upper };
+        m_segmentBoundary = { lower, upper };
 
         sptr_run = std::make_shared<bool>(false);
         sptr_stop = std::make_shared<bool>(false);
@@ -174,9 +174,6 @@ public:
 
     void setSegmentPoints(const std::vector<Point>& points);
 
-    void setSegment(
-        std::pair<std::vector<float>, std::vector<uint8_t>>& segment);
-
     /** Thread-safe getters */
 
     int getNumPoints();
@@ -234,5 +231,15 @@ public:
     std::shared_ptr<std::vector<float>> getObject();
 
     std::shared_ptr<std::vector<uint8_t>> getObjectColor();
+
+    std::pair<Point, Point> getSegmentBoundary();
+
+    void setRaw(const std::vector<float>& pcl);
+
+    void setRawColor(const std::vector<uint8_t>& color);
+
+    void setSegment(const std::vector<float>& segment);
+
+    void setSegmentColor(const std::vector<uint8_t>& segment);
 };
 #endif /* INTACT_H */
