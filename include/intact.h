@@ -113,9 +113,6 @@ public:
      * segment
      *   Segments context.
      *
-     * @param sptr_kinect
-     *   Kinect device.
-     *
      * @param sptr_intact
      *   Instance of API call.
      */
@@ -127,14 +124,10 @@ public:
      * render
      *   Renders point cloud.
      *
-     * @param sptr_kinect
-     *   Kinect device.
-     *
      * @param sptr_intact
      *   Instance of API call.
      */
-    static void render(std::shared_ptr<Kinect>& sptr_kinect,
-        std::shared_ptr<Intact>& sptr_intact);
+    static void render(std::shared_ptr<Intact>& sptr_intact);
     /**
      * cluster
      *   Clusters segmented context.
