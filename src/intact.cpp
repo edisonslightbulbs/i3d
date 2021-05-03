@@ -357,8 +357,7 @@ void Intact::segment(
 #endif
 }
 
-void Intact::calibrate(
-    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
+void Intact::calibrate(std::shared_ptr<Intact>& sptr_intact)
 {
     while (!sptr_intact->isKinectReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
