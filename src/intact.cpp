@@ -29,11 +29,7 @@
 
 // number of point-cloud points form kinect
 //
-int Intact::getNumPoints()
-{
-    std::shared_lock lock(s_mutex);
-    return m_numPoints;
-}
+int Intact::getNumPoints() { return m_numPoints; }
 
 // raw point cloud thread-safe setters and getters
 //
@@ -47,6 +43,18 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getRawColor()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_rawColor;
+}
+
+void Intact::setRaw(const std::vector<float>& pcl)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_raw = pcl;
+}
+
+void Intact::setRawColor(const std::vector<uint8_t>& color)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_rawColor = color;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getRawPoints()
@@ -81,12 +89,16 @@ std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
     return sptr_segmentPoints;
 }
 
-void Intact::setSegment(
-    std::pair<std::vector<float>, std::vector<uint8_t>>& segment)
+void Intact::setSegment(const std::vector<float>& segment)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segment = segment.first;
-    *sptr_segmentColor = segment.second;
+    *sptr_segment = segment;
+}
+
+void Intact::setSegmentColor(const std::vector<uint8_t>& color)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_segmentColor = color;
 }
 
 void Intact::setSegmentPoints(const std::vector<Point>& points)
@@ -255,6 +267,12 @@ void Intact::raiseCalibratedFlag()
     *sptr_isCalibrated = true;
 }
 
+std::pair<Point, Point> Intact::getSegmentBoundary()
+{
+    std::shared_lock lock(s_mutex);
+    return m_segmentBoundary;
+}
+
 void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
 {
     auto* data = (int16_t*)(void*)k4a_image_get_buffer(pcl);
@@ -288,17 +306,17 @@ void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
         rawColor[3 * i + 0] = color[4 * i + 2];
 
         /** filter segment boundary */
-        if (m_segmentBound.second.m_xyz[2] == __FLT_MAX__
-            || m_segmentBound.first.m_xyz[2] == __FLT_MIN__) {
+        if (getSegmentBoundary().second.m_xyz[2] == __FLT_MAX__
+            || getSegmentBoundary().first.m_xyz[2] == __FLT_MIN__) {
             continue;
         }
 
-        if ((float)data[3 * i + 0] > m_segmentBound.second.m_xyz[0]
-            || (float)data[3 * i + 0] < m_segmentBound.first.m_xyz[0]
-            || (float)data[3 * i + 1] > m_segmentBound.second.m_xyz[1]
-            || (float)data[3 * i + 1] < m_segmentBound.first.m_xyz[1]
-            || (float)data[3 * i + 2] > m_segmentBound.second.m_xyz[2]
-            || (float)data[3 * i + 2] < m_segmentBound.first.m_xyz[2]) {
+        if ((float)data[3 * i + 0] > getSegmentBoundary().second.m_xyz[0]
+            || (float)data[3 * i + 0] < getSegmentBoundary().first.m_xyz[0]
+            || (float)data[3 * i + 1] > getSegmentBoundary().second.m_xyz[1]
+            || (float)data[3 * i + 1] < getSegmentBoundary().first.m_xyz[1]
+            || (float)data[3 * i + 2] > getSegmentBoundary().second.m_xyz[2]
+            || (float)data[3 * i + 2] < getSegmentBoundary().first.m_xyz[2]) {
             continue;
         }
         segment[3 * i + 0] = (float)data[3 * i + 0];
@@ -314,8 +332,8 @@ void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
     *sptr_raw = raw;
     *sptr_rawColor = rawColor;
 
-    if (m_segmentBound.second.m_xyz[2] == __FLT_MAX__
-        || m_segmentBound.first.m_xyz[2] == __FLT_MIN__) {
+    if (getSegmentBoundary().second.m_xyz[2] == __FLT_MAX__
+        || getSegmentBoundary().first.m_xyz[2] == __FLT_MIN__) {
         *sptr_segment = *sptr_raw;
         *sptr_segmentColor = *sptr_rawColor;
     } else {
