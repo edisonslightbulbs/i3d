@@ -29,7 +29,11 @@
 
 // number of point-cloud points form kinect
 //
-int Intact::getNumPoints() { return m_numPoints; }
+int Intact::getNumPoints()
+{
+    std::shared_lock lock(s_mutex);
+    return m_numPoints;
+}
 
 // raw point cloud thread-safe setters and getters
 //
@@ -271,75 +275,6 @@ std::pair<Point, Point> Intact::getSegmentBoundary()
 {
     std::shared_lock lock(s_mutex);
     return m_segmentBoundary;
-}
-
-void Intact::buildPcl(k4a_image_t pcl, k4a_image_t transformedImage)
-{
-    auto* data = (int16_t*)(void*)k4a_image_get_buffer(pcl);
-    uint8_t* color = k4a_image_get_buffer(transformedImage);
-
-    std::vector<float> raw(m_numPoints * 3);
-    std::vector<uint8_t> rawColor(m_numPoints * 3);
-
-    std::vector<float> segment(m_numPoints * 3);
-    std::vector<uint8_t> segmentColor(m_numPoints * 3);
-
-    std::vector<float> region(m_numPoints * 3);
-    std::vector<uint8_t> regionColor(m_numPoints * 3);
-
-    /** n.b., kinect colors reversed! */
-    for (int i = 0; i < m_numPoints; i++) {
-        if (data[3 * i + 2] == 0) {
-            raw[3 * i + 0] = 0.0f;
-            raw[3 * i + 1] = 0.0f;
-            raw[3 * i + 2] = 0.0f;
-            rawColor[3 * i + 2] = color[4 * i + 0];
-            rawColor[3 * i + 1] = color[4 * i + 1];
-            rawColor[3 * i + 0] = color[4 * i + 2];
-            continue;
-        }
-        raw[3 * i + 0] = (float)data[3 * i + 0];
-        raw[3 * i + 1] = (float)data[3 * i + 1];
-        raw[3 * i + 2] = (float)data[3 * i + 2];
-        rawColor[3 * i + 2] = color[4 * i + 0];
-        rawColor[3 * i + 1] = color[4 * i + 1];
-        rawColor[3 * i + 0] = color[4 * i + 2];
-
-        /** filter segment boundary */
-        if (getSegmentBoundary().second.m_xyz[2] == __FLT_MAX__
-            || getSegmentBoundary().first.m_xyz[2] == __FLT_MIN__) {
-            continue;
-        }
-
-        if ((float)data[3 * i + 0] > getSegmentBoundary().second.m_xyz[0]
-            || (float)data[3 * i + 0] < getSegmentBoundary().first.m_xyz[0]
-            || (float)data[3 * i + 1] > getSegmentBoundary().second.m_xyz[1]
-            || (float)data[3 * i + 1] < getSegmentBoundary().first.m_xyz[1]
-            || (float)data[3 * i + 2] > getSegmentBoundary().second.m_xyz[2]
-            || (float)data[3 * i + 2] < getSegmentBoundary().first.m_xyz[2]) {
-            continue;
-        }
-        segment[3 * i + 0] = (float)data[3 * i + 0];
-        segment[3 * i + 1] = (float)data[3 * i + 1];
-        segment[3 * i + 2] = (float)data[3 * i + 2];
-        segmentColor[3 * i + 2] = color[4 * i + 0];
-        segmentColor[3 * i + 1] = color[4 * i + 1];
-        segmentColor[3 * i + 0] = color[4 * i + 2];
-    }
-
-    /** thread-safe update pcl data for rendering */
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_raw = raw;
-    *sptr_rawColor = rawColor;
-
-    if (getSegmentBoundary().second.m_xyz[2] == __FLT_MAX__
-        || getSegmentBoundary().first.m_xyz[2] == __FLT_MIN__) {
-        *sptr_segment = *sptr_raw;
-        *sptr_segmentColor = *sptr_rawColor;
-    } else {
-        *sptr_segment = segment;
-        *sptr_segmentColor = segmentColor;
-    }
 }
 
 #define SEGMENT 1
