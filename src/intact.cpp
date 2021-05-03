@@ -521,14 +521,12 @@ void Intact::cluster(
 }
 
 #define RENDER 1
-void Intact::render(
-    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<Intact>& sptr_intact)
+void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
 #if RENDER == 1
     while (!sptr_intact->isKinectReady()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
-    /** render context in real-time (un-clustered)  */
-    viewer::draw(sptr_intact, sptr_kinect);
+    viewer::draw(sptr_intact);
 #endif
 }
