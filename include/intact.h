@@ -37,7 +37,7 @@ public:
 
     /** mutual exclusion */
     std::mutex m_mutex;
-    std::shared_mutex s_mutex;
+    // std::shared_mutex s_mutex;
 
     /** flow-control semaphores */
     std::shared_ptr<bool> sptr_run;
