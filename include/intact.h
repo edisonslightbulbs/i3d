@@ -3,7 +3,8 @@
 
 #include <memory>
 #include <mutex>
-#include <shared_mutex>
+#include <opencv2/opencv.hpp>
+#include <torch/script.h>
 #include <vector>
 
 #include "kinect.h"
@@ -37,7 +38,6 @@ public:
 
     /** mutual exclusion */
     std::mutex m_mutex;
-    // std::shared_mutex s_mutex;
 
     /** flow-control semaphores */
     std::shared_ptr<bool> sptr_run;
@@ -228,5 +228,9 @@ public:
     void setSegment(const std::vector<float>& segment);
 
     void setSegmentColor(const std::vector<uint8_t>& segment);
+
+    static void detectObjects(std::vector<std::string>& classnames,
+        torch::jit::Module module, cv::VideoCapture& cap, cv::Mat& frame,
+        cv::Mat& img, std::shared_ptr<Intact>& sptr_intact);
 };
 #endif /* INTACT_H */
