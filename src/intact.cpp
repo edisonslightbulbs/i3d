@@ -31,7 +31,8 @@
 //
 int Intact::getNumPoints()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return m_numPoints;
 }
 
@@ -63,7 +64,8 @@ void Intact::setRawColor(const std::vector<uint8_t>& color)
 
 std::shared_ptr<std::vector<Point>> Intact::getRawPoints()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_rawPoints;
 }
 
@@ -89,7 +91,8 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentColor()
 
 std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_segmentPoints;
 }
 
@@ -144,7 +147,8 @@ void Intact::setRegionPoints(const std::vector<Point>& points)
 
 std::shared_ptr<std::vector<Point>> Intact::getRegionPoints()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_regionPoints;
 }
 
@@ -219,13 +223,15 @@ void Intact::stop()
 
 bool Intact::isRun()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_run;
 }
 
 bool Intact::isStop()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_stop;
 }
 
@@ -237,31 +243,36 @@ void Intact::raiseKinectReadyFlag()
 
 bool Intact::isKinectReady()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isKinectReady;
 }
 
 bool Intact::isSegmented()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isContextSegmented;
 }
 
 bool Intact::isClustered()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isContextClustered;
 }
 
 bool Intact::isEpsilonComputed()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isEpsilonComputed;
 }
 
 bool Intact::isCalibrated()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isCalibrated;
 }
 
@@ -273,7 +284,8 @@ void Intact::raiseCalibratedFlag()
 
 std::pair<Point, Point> Intact::getSegmentBoundary()
 {
-    std::shared_lock lock(s_mutex);
+    // std::shared_lock lock(s_mutex);
+    std::lock_guard<std::mutex> lck(m_mutex);
     return m_segmentBoundary;
 }
 
