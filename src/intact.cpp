@@ -16,6 +16,7 @@
 #include "region.h"
 #include "timer.h"
 #include "viewer.h"
+#include "yolov5.h"
 
 // Developer option:
 // log tracing
@@ -31,7 +32,6 @@
 //
 int Intact::getNumPoints()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return m_numPoints;
 }
@@ -64,7 +64,6 @@ void Intact::setRawColor(const std::vector<uint8_t>& color)
 
 std::shared_ptr<std::vector<Point>> Intact::getRawPoints()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_rawPoints;
 }
@@ -91,7 +90,6 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentColor()
 
 std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_segmentPoints;
 }
@@ -147,7 +145,6 @@ void Intact::setRegionPoints(const std::vector<Point>& points)
 
 std::shared_ptr<std::vector<Point>> Intact::getRegionPoints()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_regionPoints;
 }
@@ -223,14 +220,12 @@ void Intact::stop()
 
 bool Intact::isRun()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_run;
 }
 
 bool Intact::isStop()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_stop;
 }
@@ -243,35 +238,30 @@ void Intact::raiseKinectReadyFlag()
 
 bool Intact::isKinectReady()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isKinectReady;
 }
 
 bool Intact::isSegmented()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isContextSegmented;
 }
 
 bool Intact::isClustered()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isContextClustered;
 }
 
 bool Intact::isEpsilonComputed()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isEpsilonComputed;
 }
 
 bool Intact::isCalibrated()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return *sptr_isCalibrated;
 }
@@ -284,7 +274,6 @@ void Intact::raiseCalibratedFlag()
 
 std::pair<Point, Point> Intact::getSegmentBoundary()
 {
-    // std::shared_lock lock(s_mutex);
     std::lock_guard<std::mutex> lck(m_mutex);
     return m_segmentBoundary;
 }
@@ -485,7 +474,7 @@ void Intact::cluster(
 #endif
 }
 
-#define RENDER 1
+#define RENDER 0
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
 #if RENDER == 1
@@ -493,5 +482,68 @@ void Intact::render(std::shared_ptr<Intact>& sptr_intact)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     viewer::draw(sptr_intact);
+#endif
+}
+
+#define DETECT_OBJECTS 1
+void Intact::detectObjects(std::vector<std::string>& classnames,
+    torch::jit::script::Module module, cv::VideoCapture& cap, cv::Mat& frame,
+    cv::Mat& img, std::shared_ptr<Intact>& sptr_intact)
+{
+
+#if DETECT_OBJECTS == 1
+    while (cap.isOpened()) {
+        clock_t start = clock();
+        cap.read(frame);
+
+        // Preparing input tensor
+        cv::resize(frame, img, cv::Size(640, 384));
+        cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
+        torch::Tensor imgTensor = torch::from_blob(
+            img.data, { img.rows, img.cols, 3 }, torch::kByte);
+        imgTensor = imgTensor.permute({ 2, 0, 1 });
+        imgTensor = imgTensor.toType(torch::kFloat);
+        imgTensor = imgTensor.div(255);
+        imgTensor = imgTensor.unsqueeze(0);
+
+        // preds: [?, 15120, 9]
+        torch::Tensor preds
+            = module.forward({ imgTensor }).toTuple()->elements()[0].toTensor();
+        std::vector<torch::Tensor> dets
+            = yolo::non_max_suppression(preds, 0.4, 0.5);
+        if (!dets.empty()) {
+            // Visualize result
+            for (size_t i = 0; i < dets[0].sizes()[0]; ++i) {
+                float left
+                    = dets[0][i][0].item().toFloat() * (float)frame.cols / 640;
+                float top
+                    = dets[0][i][1].item().toFloat() * (float)frame.rows / 384;
+                float right
+                    = dets[0][i][2].item().toFloat() * (float)frame.cols / 640;
+                float bottom
+                    = dets[0][i][3].item().toFloat() * (float)frame.rows / 384;
+                float score = dets[0][i][4].item().toFloat();
+                int classID = dets[0][i][5].item().toInt();
+
+                cv::rectangle(frame,
+                    cv::Rect(left, top, (right - left), (bottom - top)),
+                    cv::Scalar(0, 255, 0), 2);
+
+                cv::putText(frame,
+                    classnames[classID] + ": " + cv::format("%.2f", score),
+                    cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX,
+                    (right - left) / 200, cv::Scalar(0, 255, 0), 2);
+            }
+        }
+        cv::putText(frame,
+            "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
+            cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1,
+            cv::Scalar(0, 255, 0), 2);
+        cv::imshow("", frame);
+        if (cv::waitKey(1) == 27) {
+            sptr_intact->raiseStopFlag();
+            break;
+        }
+    }
 #endif
 }
