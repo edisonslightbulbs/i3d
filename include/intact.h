@@ -16,6 +16,9 @@ public:
     /** number of raw point cloud points */
     int m_numPoints;
 
+    /** k4a images */
+    std::shared_ptr<k4a_image_t> m_rgbImage = nullptr;
+
     /** raw point cloud */
     std::shared_ptr<std::vector<float>> sptr_raw = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_rawColor = nullptr;
@@ -36,8 +39,8 @@ public:
     std::shared_ptr<std::vector<uint8_t>> sptr_objectColor = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_objectPoints = nullptr;
 
-    /** mutual exclusion */
-    std::mutex m_mutex;
+    /** for pcl resource management */
+    std::mutex pcl_mutex;
 
     /** flow-control semaphores */
     std::shared_ptr<bool> sptr_run;
@@ -52,7 +55,7 @@ public:
 
     void setSegmentBoundary(std::pair<Point, Point>& boundary)
     {
-        std::lock_guard<std::mutex> lck(m_mutex);
+        std::lock_guard<std::mutex> lck(pcl_mutex);
         m_segmentBoundary = boundary;
     }
 
@@ -230,7 +233,7 @@ public:
     void setSegmentColor(const std::vector<uint8_t>& segment);
 
     static void detectObjects(std::vector<std::string>& classnames,
-        torch::jit::Module module, cv::VideoCapture& cap, cv::Mat& frame,
-        cv::Mat& img, std::shared_ptr<Intact>& sptr_intact);
+        torch::jit::Module& module, cv::Mat& frame, cv::Mat& img,
+        std::shared_ptr<Intact>& sptr_intact);
 };
 #endif /* INTACT_H */
