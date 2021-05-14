@@ -16,9 +16,6 @@ public:
     /** number of raw point cloud points */
     int m_numPoints;
 
-    /** k4a images */
-    std::shared_ptr<k4a_image_t> m_rgbImage = nullptr;
-
     /** raw point cloud */
     std::shared_ptr<std::vector<float>> sptr_raw = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_rawColor = nullptr;
@@ -40,7 +37,7 @@ public:
     std::shared_ptr<std::vector<Point>> sptr_objectPoints = nullptr;
 
     /** for pcl resource management */
-    std::mutex pcl_mutex;
+    std::mutex m_mutex;
 
     /** flow-control semaphores */
     std::shared_ptr<bool> sptr_run;
@@ -55,7 +52,7 @@ public:
 
     void setSegmentBoundary(std::pair<Point, Point>& boundary)
     {
-        std::lock_guard<std::mutex> lck(pcl_mutex);
+        std::lock_guard<std::mutex> lck(m_mutex);
         m_segmentBoundary = boundary;
     }
 
@@ -233,7 +230,7 @@ public:
     void setSegmentColor(const std::vector<uint8_t>& segment);
 
     static void detectObjects(std::vector<std::string>& classnames,
-        torch::jit::Module& module, k4a_image_t k4aImage,
-        std::shared_ptr<Intact>& sptr_intact);
+        torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact,
+        std::shared_ptr<Kinect>& sptr_kinect);
 };
 #endif /* INTACT_H */
