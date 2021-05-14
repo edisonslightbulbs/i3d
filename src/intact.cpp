@@ -277,7 +277,7 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 #if SEGMENT == 1
     bool init = true;
     while (!sptr_intact->isKinectReady()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
 
     while (sptr_intact->isRun()) {
@@ -298,7 +298,6 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
             sptr_intact->raiseSegmentedFlag();
             TRACE("-- context segmented"); /*NOLINT*/
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 #endif
 }
@@ -422,7 +421,7 @@ void Intact::cluster(
     {
         /** wait for epsilon value */
         while (!sptr_intact->isEpsilonComputed()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(3));
         }
 
         bool init = true;
@@ -462,7 +461,6 @@ void Intact::cluster(
                 sptr_intact->raiseClusteredFlag();
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 #endif
 }
@@ -472,21 +470,29 @@ void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
 #if RENDER == 1
     while (!sptr_intact->isKinectReady()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
     viewer::draw(sptr_intact);
 #endif
 }
 
 #define DETECT_OBJECTS 1
-
 void Intact::detectObjects(std::vector<std::string>& classnames,
-    torch::jit::script::Module& module, cv::Mat& frame, cv::Mat& img,
+    torch::jit::script::Module& module, k4a_image_t k4aImage,
     std::shared_ptr<Intact>& sptr_intact)
 
 {
 #if DETECT_OBJECTS == 1
     clock_t start = clock();
+    int w = k4a_image_get_width_pixels(k4aImage);
+    int h = k4a_image_get_height_pixels(k4aImage);
+    uint8_t* imgData = k4a_image_get_buffer(k4aImage);
+
+    cv::Mat img;
+    cv::Mat frame
+        = cv::Mat(h, w, CV_8UC4, (void*)imgData, cv::Mat::AUTO_STEP).clone();
+    // cv::cvtColor(frame, frame, cv::COLOR_BGRA2BGR);
+
     /** prepare tensor input */
     cv::resize(frame, img, cv::Size(640, 384));
     cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
@@ -528,12 +534,15 @@ void Intact::detectObjects(std::vector<std::string>& classnames,
         }
     }
 
+#define SHOW_DETECTED_OBJECTS 1
+#if SHOW_DETECTED_OBJECTS == 1
     cv::putText(frame,
         "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
         cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0),
         2);
-
     cv::imshow("", frame);
+#endif
+
     if (cv::waitKey(1) == 27) {
         sptr_intact->raiseStopFlag();
     }
