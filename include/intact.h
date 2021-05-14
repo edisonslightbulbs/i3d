@@ -233,7 +233,7 @@ public:
     void setSegmentColor(const std::vector<uint8_t>& segment);
 
     static void detectObjects(std::vector<std::string>& classnames,
-        torch::jit::Module& module, cv::Mat& frame, cv::Mat& img,
+        torch::jit::Module& module, k4a_image_t k4aImage,
         std::shared_ptr<Intact>& sptr_intact);
 };
 #endif /* INTACT_H */
