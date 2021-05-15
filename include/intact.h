@@ -21,14 +21,15 @@ public:
     std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
     /** segmented pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_segmentPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_segmentImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_segmentPoints = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_segmentedPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_segmentedImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_segmentedPoints = nullptr;
+    std::shared_ptr<cv::Mat> sptr_segmentedImgData = nullptr; // todo fixme
 
     /** clustered pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_clustersPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_clustersImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_clustersPoints = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_clusteredPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_clusteredImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_clusteredPoints = nullptr;
 
     /** tabletop pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_tabletopPcl = nullptr;
@@ -77,17 +78,18 @@ public:
         sptr_img = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
         sptr_points = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
-        sptr_segmentPcl = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_segmentImg
+        sptr_segmentedPcl
+            = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_segmentedImg
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_segmentPoints
+        sptr_segmentedPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
-        sptr_clustersPcl
+        sptr_clusteredPcl
             = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_clustersImg
+        sptr_clusteredImg
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_clustersPoints
+        sptr_clusteredPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
         sptr_tabletopPcl
@@ -157,22 +159,24 @@ public:
     std::shared_ptr<std::vector<Point>> getPoints();
 
     /** segmented pcl, image, and points */
-    void setSegmentPcl(const std::vector<float>& segment);
-    void setSegmentImg(const std::vector<uint8_t>& segment);
-    void setSegmentPoints(const std::vector<Point>& points);
+    void setSegmentedPcl(const std::vector<float>& segment);
+    void setSegmentedImg(const std::vector<uint8_t>& segment);
+    void setSegmentedPoints(const std::vector<Point>& points);
+    void setSegmentedImgData(cv::Mat& imgData); // todo: check me
 
-    std::shared_ptr<std::vector<float>> getSegmentPcl();
-    std::shared_ptr<std::vector<uint8_t>> getSegmentImg();
-    std::shared_ptr<std::vector<Point>> getSegmentPoints();
+    std::shared_ptr<std::vector<float>> getSegmentedPcl();
+    std::shared_ptr<std::vector<uint8_t>> getSegmentedImg();
+    std::shared_ptr<std::vector<Point>> getSegmentedPoints();
+    std::shared_ptr<cv::Mat> getSegmentedImgData(); // todo: check me
 
     /** clustered pcl, image, and points */
-    void setClustersPcl(const std::vector<float>& points);
-    void setClustersImg(const std::vector<uint8_t>& color);
-    void setClustersPoints(const std::vector<Point>& points);
+    void setClusteredPcl(const std::vector<float>& points);
+    void setClusteredImg(const std::vector<uint8_t>& color);
+    void setClusteredPoints(const std::vector<Point>& points);
 
-    std::shared_ptr<std::vector<float>> getClustersPcl();
-    std::shared_ptr<std::vector<uint8_t>> getClustersImg();
-    std::shared_ptr<std::vector<Point>> getClustersPoints();
+    std::shared_ptr<std::vector<float>> getClusteredPcl();
+    std::shared_ptr<std::vector<uint8_t>> getClusteredImg();
+    std::shared_ptr<std::vector<Point>> getClusteredPoints();
 
     /** tabletop pcl, image, and points */
     void setTabletopPcl(const std::vector<float>& points);
@@ -217,7 +221,6 @@ public:
     void raiseCalibratedFlag();
 
     static void detectObjects(std::vector<std::string>& classnames,
-        torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact,
-        std::shared_ptr<Kinect>& sptr_kinect);
+        torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact);
 };
 #endif /* INTACT_H */
