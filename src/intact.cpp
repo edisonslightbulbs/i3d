@@ -76,75 +76,88 @@ void Intact::setPoints(const std::vector<Point>& points)
     *sptr_points = points;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getSegmentPcl()
+std::shared_ptr<std::vector<float>> Intact::getSegmentedPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentPcl;
+    return sptr_segmentedPcl;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentImg()
+std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentedImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentImg;
+    return sptr_segmentedImg;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
-{
+std::shared_ptr<cv::Mat> Intact::getSegmentedImgData()
+{ // todo check me please
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentPoints;
+    return sptr_segmentedImgData;
 }
 
-void Intact::setSegmentPcl(const std::vector<float>& segment)
+void Intact::setSegmentedImgData(cv::Mat& imgData)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentPcl = segment;
+    sptr_segmentedImgData
+        = std::make_shared<cv::Mat>(imgData); // todo: [check] ...
 }
 
-void Intact::setSegmentImg(const std::vector<uint8_t>& segment)
+std::shared_ptr<std::vector<Point>> Intact::getSegmentedPoints()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentImg = segment;
+    return sptr_segmentedPoints;
 }
 
-void Intact::setSegmentPoints(const std::vector<Point>& points)
+void Intact::setSegmentedPcl(const std::vector<float>& segment)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentPoints = points;
+    *sptr_segmentedPcl = segment;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getClustersPcl()
+void Intact::setSegmentedImg(const std::vector<uint8_t>& segment)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_clustersPcl;
+    *sptr_segmentedImg = segment;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getClustersImg()
+void Intact::setSegmentedPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_clustersImg;
+    *sptr_segmentedPoints = points;
 }
 
-void Intact::setClustersPcl(const std::vector<float>& points)
+std::shared_ptr<std::vector<float>> Intact::getClusteredPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clustersPcl = points;
-}
-void Intact::setClustersImg(const std::vector<uint8_t>& color)
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clustersImg = color;
+    return sptr_clusteredPcl;
 }
 
-void Intact::setClustersPoints(const std::vector<Point>& points)
+std::shared_ptr<std::vector<uint8_t>> Intact::getClusteredImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clustersPoints = points;
+    return sptr_clusteredImg;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getClustersPoints()
+void Intact::setClusteredPcl(const std::vector<float>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_clustersPoints;
+    *sptr_clusteredPcl = points;
+}
+void Intact::setClusteredImg(const std::vector<uint8_t>& color)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_clusteredImg = color;
+}
+
+void Intact::setClusteredPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_clusteredPoints = points;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getClusteredPoints()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_clusteredPoints;
 }
 
 void Intact::setTabletopPcl(const std::vector<float>& points)
@@ -293,7 +306,7 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
         std::vector<Point> seg = region::segment(points);
         std::pair<Point, Point> boundary = region::queryBoundary(seg);
         setSegmentBoundary(boundary);
-        sptr_intact->setSegmentPoints(seg); // <- update segment points
+        sptr_intact->setSegmentedPoints(seg); // <- update segment points
 
         /** update flow control semaphores */
         if (init) {
@@ -385,7 +398,7 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
     }
 
     TRACE("-- evaluating k nearest neighbours"); /*NOLINT*/
-    std::vector<Point> points = *sptr_intact->getSegmentPoints();
+    std::vector<Point> points = *sptr_intact->getSegmentedPoints();
 
     const int testVal = 3;
     // testVal used for arbitrary test for release, use
@@ -433,9 +446,9 @@ void Intact::cluster(
 
             /** cluster segmented context ~130ms/loop iteration */
             std::vector<std::vector<Point>> clusters
-                = dbscan::cluster(*sptr_intact->getSegmentPoints(), E, N);
+                = dbscan::cluster(*sptr_intact->getSegmentedPoints(), E, N);
 
-            /** create objects using view clusters */
+            /** create object list using the density clusters */
             std::vector<Object> objects;
             for (auto& cluster : clusters) {
                 Object object(cluster);
@@ -443,15 +456,17 @@ void Intact::cluster(
             }
 
             /** cast region points to pcl format  for rendering */
-            std::pair<std::vector<float>, std::vector<uint8_t>> region
-                = cast::toClusteredPcl(objects.back().m_points);
-            sptr_intact->setClustersPcl(region.first);
-            sptr_intact->setClustersImg(region.second);
-            sptr_intact->setClustersPoints(objects.back().m_points);
+            std::pair<std::vector<float>, std::vector<uint8_t>>
+                spatialDensityClusters = cast::toClusteredPcl(
+                    objects.back().m_points); // objects.back() = all clusters
+            sptr_intact->setClusteredPcl(spatialDensityClusters.first);
+            sptr_intact->setClusteredImg(spatialDensityClusters.second);
+            sptr_intact->setClusteredPoints(objects.back().m_points);
 
             /** cast object points to pcl format  for rendering */
             std::pair<std::vector<float>, std::vector<uint8_t>> object
-                = cast::toClusteredPcl(objects.front().m_points);
+                = cast::toClusteredPcl(
+                    objects.front().m_points); // objects.front() = tabletop
             sptr_intact->setTabletopPcl(object.first);
             sptr_intact->setTabletopImg(object.second);
             sptr_intact->setTabletopPoints(objects.front().m_points);
@@ -460,7 +475,7 @@ void Intact::cluster(
             if (init) {
                 init = false;
                 WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
-                    *sptr_intact->getClustersPoints()); /*NOLINT*/
+                    *sptr_intact->getClusteredPoints()); /*NOLINT*/
                 sptr_intact->raiseClusteredFlag();
             }
         }
@@ -479,36 +494,19 @@ void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 #endif
 }
 
-void chromakey(std::shared_ptr<Kinect>& sptr_kinect) { }
-
 #define DETECT_OBJECTS 1
 void Intact::detectObjects(std::vector<std::string>& classnames,
-    torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact,
-    std::shared_ptr<Kinect>& sptr_kinect)
+    torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
 #if DETECT_OBJECTS == 1
-    while (!sptr_intact->isKinectReady()) {
+    while (!sptr_intact->isClustered()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
     while (sptr_intact->isKinectReady()) {
-
-        if (sptr_kinect->getRgb2DepthImgClone() == nullptr
-            || sptr_kinect->getDepthImgClone() == nullptr) {
-            continue;
-        }
         clock_t start = clock();
-        int w = k4a_image_get_width_pixels(sptr_kinect->getDepthImgClone());
-        int h = k4a_image_get_height_pixels(sptr_kinect->getDepthImgClone());
-        uint8_t* imgData
-            = k4a_image_get_buffer(sptr_kinect->getRgb2DepthImgClone());
 
-        sptr_kinect->releaseClones();
-
+        cv::Mat frame = *sptr_intact->getSegmentedImgData();
         cv::Mat img;
-        cv::Mat frame
-            = cv::Mat(h, w, CV_8UC4, (void*)imgData, cv::Mat::AUTO_STEP)
-                  .clone();
-
         /** prepare tensor input */
         cv::resize(frame, img, cv::Size(640, 384));
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
