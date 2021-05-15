@@ -13,28 +13,27 @@
 class Intact {
 
 public:
-    /** number of raw point cloud points */
     int m_numPoints;
 
-    /** raw point cloud */
-    std::shared_ptr<std::vector<float>> sptr_raw = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_rawColor = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_rawPoints = nullptr;
+    /** initial pcl, image, and points */
+    std::shared_ptr<std::vector<float>> sptr_pcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_img = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
-    /** raw point cloud segment */
-    std::shared_ptr<std::vector<float>> sptr_segment = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_segmentColor = nullptr;
+    /** segmented pcl, image, and points */
+    std::shared_ptr<std::vector<float>> sptr_segmentPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_segmentImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_segmentPoints = nullptr;
 
-    /** region */
-    std::shared_ptr<std::vector<float>> sptr_region = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_regionColor = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_regionPoints = nullptr;
+    /** clustered pcl, image, and points */
+    std::shared_ptr<std::vector<float>> sptr_clustersPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_clustersImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_clustersPoints = nullptr;
 
-    /** object */
-    std::shared_ptr<std::vector<float>> sptr_object = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_objectColor = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_objectPoints = nullptr;
+    /** tabletop pcl, image, and points */
+    std::shared_ptr<std::vector<float>> sptr_tabletopPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_tabletopImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_tabletopPoints = nullptr;
 
     /** for pcl resource management */
     std::mutex m_mutex;
@@ -74,26 +73,28 @@ public:
         sptr_isContextClustered = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
 
-        sptr_raw = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_rawColor = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_rawPoints = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+        sptr_pcl = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_img = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+        sptr_points = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
-        sptr_segment = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_segmentColor
+        sptr_segmentPcl = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_segmentImg
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
         sptr_segmentPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
-        sptr_region = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_regionColor
+        sptr_clustersPcl
+            = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_clustersImg
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_regionPoints
+        sptr_clustersPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
-        sptr_object = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_objectColor
+        sptr_tabletopPcl
+            = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_tabletopImg
             = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_objectPoints
+        sptr_tabletopPoints
             = std::make_shared<std::vector<Point>>(m_numPoints * 3);
     }
     /**
@@ -144,70 +145,68 @@ public:
     static void estimateEpsilon(
         const int& K, std::shared_ptr<Intact>& sptr_intact);
 
-    /** Thread-safe setters */
-    void setObject(const std::vector<float>& points);
-
-    void setRegion(const std::vector<float>& points);
-
-    void setRawPoints(const std::vector<Point>& points);
-
-    void setObjectColor(const std::vector<uint8_t>& color);
-
-    void setObjectPoints(const std::vector<Point>& points);
-
-    void setRegionPoints(const std::vector<Point>& points);
-
-    void setRegionColor(const std::vector<uint8_t>& color);
-
-    void setSegmentPoints(const std::vector<Point>& points);
-
-    /** Thread-safe getters */
-
     int getNumPoints();
 
-    std::shared_ptr<std::vector<float>> getRaw();
+    /** initial pcl, image, and points */
+    void setPcl(const std::vector<float>& pcl);
+    void setImg(const std::vector<uint8_t>& color);
+    void setPoints(const std::vector<Point>& points);
 
-    std::shared_ptr<std::vector<float>> getRegion();
+    std::shared_ptr<std::vector<float>> getPcl();
+    std::shared_ptr<std::vector<uint8_t>> getImg();
+    std::shared_ptr<std::vector<Point>> getPoints();
 
-    std::shared_ptr<std::vector<float>> getSegment();
+    /** segmented pcl, image, and points */
+    void setSegmentPcl(const std::vector<float>& segment);
+    void setSegmentImg(const std::vector<uint8_t>& segment);
+    void setSegmentPoints(const std::vector<Point>& points);
 
-    std::shared_ptr<std::vector<Point>> getRawPoints();
-
-    std::shared_ptr<std::vector<uint8_t>> getRawColor();
-
-    std::shared_ptr<std::vector<Point>> getRegionPoints();
-
-    std::shared_ptr<std::vector<uint8_t>> getRegionColor();
-
+    std::shared_ptr<std::vector<float>> getSegmentPcl();
+    std::shared_ptr<std::vector<uint8_t>> getSegmentImg();
     std::shared_ptr<std::vector<Point>> getSegmentPoints();
 
-    std::shared_ptr<std::vector<uint8_t>> getSegmentColor();
+    /** clustered pcl, image, and points */
+    void setClustersPcl(const std::vector<float>& points);
+    void setClustersImg(const std::vector<uint8_t>& color);
+    void setClustersPoints(const std::vector<Point>& points);
 
-    /** Thread-safe semaphore queries */
+    std::shared_ptr<std::vector<float>> getClustersPcl();
+    std::shared_ptr<std::vector<uint8_t>> getClustersImg();
+    std::shared_ptr<std::vector<Point>> getClustersPoints();
+
+    /** tabletop pcl, image, and points */
+    void setTabletopPcl(const std::vector<float>& points);
+    void setTabletopImg(const std::vector<uint8_t>& color);
+    void setTabletopPoints(const std::vector<Point>& points);
+
+    std::shared_ptr<std::vector<float>> getTabletopPcl();
+    std::shared_ptr<std::vector<uint8_t>> getTabletopImg();
+
+    /** segment boundary */
+    std::pair<Point, Point> getSegmentBoundary();
+
+    /** asynchronous flow-control semaphores */
+    void stop();
+
     bool isRun();
 
     bool isStop();
 
     bool isSegmented();
 
-    bool isCalibrated();
-
     bool isClustered();
 
-    bool isKinectReady();
-
-    bool isEpsilonComputed();
-
-    /** Thread-safe semaphore control */
-    void stop();
+    bool isCalibrated();
 
     void raiseRunFlag();
 
     void raiseStopFlag();
 
-    void raiseCalibratedFlag();
+    bool isKinectReady();
 
     void raiseEpsilonFlag();
+
+    bool isEpsilonComputed();
 
     void raiseSegmentedFlag();
 
@@ -215,19 +214,7 @@ public:
 
     void raiseKinectReadyFlag();
 
-    std::shared_ptr<std::vector<float>> getObject();
-
-    std::shared_ptr<std::vector<uint8_t>> getObjectColor();
-
-    std::pair<Point, Point> getSegmentBoundary();
-
-    void setRaw(const std::vector<float>& pcl);
-
-    void setRawColor(const std::vector<uint8_t>& color);
-
-    void setSegment(const std::vector<float>& segment);
-
-    void setSegmentColor(const std::vector<uint8_t>& segment);
+    void raiseCalibratedFlag();
 
     static void detectObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact,
