@@ -18,12 +18,12 @@ public:
     int m_depthHeight;
 
     /** initial data */
-    std::shared_ptr<int16_t*> sptr_pclData = nullptr;   // todo:check
-    std::shared_ptr<uint8_t*> sptr_imgData = nullptr; // todo:check
+    std::shared_ptr<int16_t*> sptr_segmentedPclData = nullptr; // todo:check
+    std::shared_ptr<uint8_t*> sptr_segmentedImgData = nullptr; // todo:check
 
     /** pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_pcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_img = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_pclVec = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_imgVec = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
     /** segmented pcl, image, and points */
@@ -83,8 +83,8 @@ public:
         sptr_isContextClustered = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
 
-        sptr_pcl = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_img = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
+        sptr_pclVec = std::make_shared<std::vector<float>>(m_numPoints * 3);
+        sptr_imgVec = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
         sptr_points = std::make_shared<std::vector<Point>>(m_numPoints * 3);
 
         sptr_segmentedPcl
@@ -159,15 +159,15 @@ public:
     int getNumPoints();
 
     /** initial data */
-    void setPclData(int16_t* pcl);
-    void setImgData(uint8_t* image);
+    void setSegmentedPclData(int16_t* pcl);
+    void setSegmentedImgData(uint8_t* image);
 
     std::shared_ptr<int16_t*> getPclData();
     std::shared_ptr<uint8_t*> getImgData();
 
     /** pcl, image, and points */
-    void setPcl(const std::vector<float>& pcl);
-    void setImg(const std::vector<uint8_t>& img);
+    void setPclVec(const std::vector<float>& pcl);
+    void setImgVec(const std::vector<uint8_t>& img);
     void setPoints(const std::vector<Point>& points);
 
     std::shared_ptr<std::vector<float>> getPcl();
