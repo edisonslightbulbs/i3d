@@ -64,51 +64,51 @@ void Intact::setDepthImgWidth(const int& width)
     m_depthWidth = width;
 }
 
-void Intact::setPclData(int16_t* pcl)
+void Intact::setSegmentedPclData(int16_t* pcl)
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_pclData = std::make_shared<short*>(pcl);
+    sptr_segmentedPclData = std::make_shared<short*>(pcl);
 }
 
-void Intact::setImgData(uint8_t* img)
+void Intact::setSegmentedImgData(uint8_t* image)
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_imgData = std::make_shared<uint8_t*>(img);
+    sptr_segmentedImgData = std::make_shared<uint8_t*>(image);
 }
 
 std::shared_ptr<int16_t*> Intact::getPclData()
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_pclData;
+    return sptr_segmentedPclData;
 }
 std::shared_ptr<uint8_t*> Intact::getImgData()
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_imgData;
+    return sptr_segmentedImgData;
 }
 
 std::shared_ptr<std::vector<float>> Intact::getPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_pcl;
+    return sptr_pclVec;
 }
 
 std::shared_ptr<std::vector<uint8_t>> Intact::getImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_img;
+    return sptr_imgVec;
 }
 
-void Intact::setPcl(const std::vector<float>& pcl)
+void Intact::setPclVec(const std::vector<float>& pcl)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_pcl = pcl;
+    *sptr_pclVec = pcl;
 }
 
-void Intact::setImg(const std::vector<uint8_t>& img)
+void Intact::setImgVec(const std::vector<uint8_t>& img)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_img = img;
+    *sptr_imgVec = img;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getPoints()
