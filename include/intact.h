@@ -14,8 +14,14 @@ class Intact {
 
 public:
     int m_numPoints;
+    int m_depthWidth;
+    int m_depthHeight;
 
-    /** initial pcl, image, and points */
+    /** initial data */
+    std::shared_ptr<int16_t*> sptr_pclData = nullptr;   // todo:check
+    std::shared_ptr<uint8_t*> sptr_imgData = nullptr; // todo:check
+
+    /** pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_pcl = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_img = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
@@ -24,7 +30,7 @@ public:
     std::shared_ptr<std::vector<float>> sptr_segmentedPcl = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_segmentedImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_segmentedPoints = nullptr;
-    std::shared_ptr<cv::Mat> sptr_segmentedImgData = nullptr; // todo fixme
+    std::shared_ptr<cv::Mat> sptr_segmentedImgFrame = nullptr; // todo fixme
 
     /** clustered pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_clusteredPcl = nullptr;
@@ -35,6 +41,7 @@ public:
     std::shared_ptr<std::vector<float>> sptr_tabletopPcl = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_tabletopImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_tabletopPoints = nullptr;
+    std::shared_ptr<cv::Mat> sptr_tabletopImgData = nullptr; // todo fixme
 
     /** for pcl resource management */
     std::mutex m_mutex;
@@ -47,6 +54,7 @@ public:
     std::shared_ptr<bool> sptr_isContextClustered;
     std::shared_ptr<bool> sptr_isEpsilonComputed;
     std::shared_ptr<bool> sptr_isContextSegmented;
+    std::shared_ptr<bool> sptr_isChromakeyed; // todo:check
 
     std::pair<Point, Point> m_segmentBoundary {};
 
@@ -70,6 +78,7 @@ public:
         sptr_stop = std::make_shared<bool>(false);
         sptr_isCalibrated = std::make_shared<bool>(false);
         sptr_isKinectReady = std::make_shared<bool>(false);
+        sptr_isChromakeyed = std::make_shared<bool>(false); // todo:check
         sptr_isEpsilonComputed = std::make_shared<bool>(false);
         sptr_isContextClustered = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
@@ -149,9 +158,16 @@ public:
 
     int getNumPoints();
 
-    /** initial pcl, image, and points */
+    /** initial data */
+    void setPclData(int16_t* pcl);
+    void setImgData(uint8_t* image);
+
+    std::shared_ptr<int16_t*> getPclData();
+    std::shared_ptr<uint8_t*> getImgData();
+
+    /** pcl, image, and points */
     void setPcl(const std::vector<float>& pcl);
-    void setImg(const std::vector<uint8_t>& color);
+    void setImg(const std::vector<uint8_t>& img);
     void setPoints(const std::vector<Point>& points);
 
     std::shared_ptr<std::vector<float>> getPcl();
@@ -162,12 +178,12 @@ public:
     void setSegmentedPcl(const std::vector<float>& segment);
     void setSegmentedImg(const std::vector<uint8_t>& segment);
     void setSegmentedPoints(const std::vector<Point>& points);
-    void setSegmentedImgData(cv::Mat& imgData); // todo: check me
+    void setSegmentedImgFrame(cv::Mat& imgData); // todo: check me
 
     std::shared_ptr<std::vector<float>> getSegmentedPcl();
     std::shared_ptr<std::vector<uint8_t>> getSegmentedImg();
     std::shared_ptr<std::vector<Point>> getSegmentedPoints();
-    std::shared_ptr<cv::Mat> getSegmentedImgData(); // todo: check me
+    std::shared_ptr<cv::Mat> getSegmentedImgFrame(); // todo: check me
 
     /** clustered pcl, image, and points */
     void setClusteredPcl(const std::vector<float>& points);
@@ -182,7 +198,9 @@ public:
     void setTabletopPcl(const std::vector<float>& points);
     void setTabletopImg(const std::vector<uint8_t>& color);
     void setTabletopPoints(const std::vector<Point>& points);
+    void setTabletopImgData(cv::Mat& imgData); // todo: check me
 
+    std::shared_ptr<cv::Mat> getTabletopImgData(); // todo: check me
     std::shared_ptr<std::vector<float>> getTabletopPcl();
     std::shared_ptr<std::vector<uint8_t>> getTabletopImg();
 
@@ -210,6 +228,8 @@ public:
 
     void raiseEpsilonFlag();
 
+    void raiseChromakeyedFlag();
+
     bool isEpsilonComputed();
 
     void raiseSegmentedFlag();
@@ -222,5 +242,13 @@ public:
 
     static void detectObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact);
+
+    int getDepthImgWidth();
+
+    int getDepthImgHeight();
+
+    void setDepthImgHeight(const int& height);
+
+    void setDepthImgWidth(const int& width);
 };
 #endif /* INTACT_H */
