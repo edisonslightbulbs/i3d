@@ -40,6 +40,53 @@ int Intact::getNumPoints()
     return m_numPoints;
 }
 
+int Intact::getDepthImgWidth()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_depthWidth;
+}
+
+int Intact::getDepthImgHeight()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_depthHeight;
+}
+
+void Intact::setDepthImgHeight(const int& height)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    m_depthHeight = height;
+}
+
+void Intact::setDepthImgWidth(const int& width)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    m_depthWidth = width;
+}
+
+void Intact::setPclData(int16_t* pcl)
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    sptr_pclData = std::make_shared<short*>(pcl);
+}
+
+void Intact::setImgData(uint8_t* img)
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    sptr_imgData = std::make_shared<uint8_t*>(img);
+}
+
+std::shared_ptr<int16_t*> Intact::getPclData()
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_pclData;
+}
+std::shared_ptr<uint8_t*> Intact::getImgData()
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_imgData;
+}
+
 std::shared_ptr<std::vector<float>> Intact::getPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
@@ -58,10 +105,10 @@ void Intact::setPcl(const std::vector<float>& pcl)
     *sptr_pcl = pcl;
 }
 
-void Intact::setImg(const std::vector<uint8_t>& color)
+void Intact::setImg(const std::vector<uint8_t>& img)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_img = color;
+    *sptr_img = img;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getPoints()
@@ -88,17 +135,28 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentedImg()
     return sptr_segmentedImg;
 }
 
-std::shared_ptr<cv::Mat> Intact::getSegmentedImgData()
-{ // todo check me please
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedImgData;
-}
-
-void Intact::setSegmentedImgData(cv::Mat& imgData)
+std::shared_ptr<cv::Mat> Intact::getSegmentedImgFrame() // todo check me please
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_segmentedImgData
-        = std::make_shared<cv::Mat>(imgData); // todo: [check] ...
+    return sptr_segmentedImgFrame;
+}
+
+void Intact::setSegmentedImgFrame(cv::Mat& imgData) // todo check me please
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    sptr_segmentedImgFrame = std::make_shared<cv::Mat>(imgData);
+}
+
+std::shared_ptr<cv::Mat> Intact::getTabletopImgData() // todo check me please
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_tabletopImgData;
+}
+
+void Intact::setTabletopImgData(cv::Mat& imgData) // todo check me please
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    sptr_tabletopImgData = std::make_shared<cv::Mat>(imgData);
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getSegmentedPoints()
@@ -195,6 +253,12 @@ void Intact::raiseSegmentedFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_isContextSegmented = true;
+}
+
+void Intact::raiseChromakeyedFlag()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_isChromakeyed = true;
 }
 
 void Intact::raiseClusteredFlag()
@@ -502,10 +566,15 @@ void Intact::detectObjects(std::vector<std::string>& classnames,
     while (!sptr_intact->isClustered()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
-    while (sptr_intact->isKinectReady()) {
+    while (sptr_intact->isRun()) {
         clock_t start = clock();
 
-        cv::Mat frame = *sptr_intact->getSegmentedImgData();
+        cv::Mat frame = *sptr_intact->getSegmentedImgFrame();
+
+        // if(sptr_intact->sptr_isChromakeyed){
+        //     frame = *sptr_intact->getTabletopImgData();
+        // }
+
         cv::Mat img;
         /** prepare tensor input */
         cv::resize(frame, img, cv::Size(640, 384));
