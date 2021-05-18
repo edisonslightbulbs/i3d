@@ -11,114 +11,90 @@
 #include "point.h"
 
 class Intact {
-
+private:
 public:
+    std::mutex m_mutex;
+
     int m_numPoints;
-    int m_depthWidth;
-    int m_depthHeight;
+    int m_depthWidth {};
+    int m_depthHeight {};
 
     /** pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_pclVec = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_imgVec = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_rawPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_rawImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_rawPts = nullptr;
 
     /** segmented pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_segmentedPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_segmentedImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_segmentedPoints = nullptr;
-    std::shared_ptr<cv::Mat> sptr_segmentedImgFrame = nullptr; // todo fixme
-    std::shared_ptr<int16_t*> sptr_segmentedPclData = nullptr; // todo:check
-    std::shared_ptr<uint8_t*> sptr_segmentedImgData = nullptr; // todo:check
+    std::shared_ptr<cv::Mat> sptr_segFrame = nullptr;
+    std::shared_ptr<int16_t*> sptr_segPclBuf = nullptr;
+    std::shared_ptr<uint8_t*> sptr_segImgBuf = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_segPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_segImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_segPts = nullptr;
 
     /** clustered pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_clusteredPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_clusteredImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_clusteredPoints = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_cluPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_cluImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_cluPts = nullptr;
 
     /** tabletop pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_tabletopPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_tabletopImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_tabletopPoints = nullptr;
-    std::shared_ptr<cv::Mat> sptr_tabletopImgFrame = nullptr; // todo fixme
-    std::shared_ptr<int16_t*> sptr_tabletopPclData = nullptr; // todo:check
-    std::shared_ptr<uint8_t*> sptr_tabletopImgData = nullptr; // todo:check
-
-    /** for pcl resource management */
-    std::mutex m_mutex;
+    std::shared_ptr<cv::Mat> sptr_ttpFrame = nullptr;
+    std::shared_ptr<int16_t*> sptr_ttpPclBuf = nullptr;
+    std::shared_ptr<uint8_t*> sptr_ttpImgBuf = nullptr;
+    std::shared_ptr<std::vector<float>> sptr_ttpPcl = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_ttpImg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_ttpPts = nullptr;
 
     /** flow-control semaphores */
     std::shared_ptr<bool> sptr_run;
     std::shared_ptr<bool> sptr_stop;
     std::shared_ptr<bool> sptr_isCalibrated;
     std::shared_ptr<bool> sptr_isKinectReady;
+    std::shared_ptr<bool> sptr_isChromakeyed;
     std::shared_ptr<bool> sptr_isContextClustered;
     std::shared_ptr<bool> sptr_isEpsilonComputed;
     std::shared_ptr<bool> sptr_isContextSegmented;
-    std::shared_ptr<bool> sptr_isChromakeyed; // todo:check
 
     std::pair<Point, Point> m_segmentBoundary {};
     std::pair<Point, Point> m_tabletopBoundary {};
 
-    void setSegmentBoundary(std::pair<Point, Point>& boundary)
-    {
-        std::lock_guard<std::mutex> lck(m_mutex);
-        m_segmentBoundary = boundary;
-    }
-
-    void setTabletopBoundary(std::pair<Point, Point>& boundary)
-    {
-        std::lock_guard<std::mutex> lck(m_mutex);
-        m_tabletopBoundary = boundary;
-    }
-
-    /** initialize API */
     explicit Intact(int& numPoints)
         : m_numPoints(numPoints)
     {
-        /** initial segment upper and lower boundary */
+        /** initialize infinite boundaries */
         Point sUB(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
         Point sLB(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
-        m_segmentBoundary = { sUB, sLB };
-
-        /** initial tabletop upper and lower boundary */
         Point tUB(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
         Point tLB(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 
+        m_segmentBoundary = { sUB, sLB };
         m_tabletopBoundary = { tUB, tLB };
 
         sptr_run = std::make_shared<bool>(false);
         sptr_stop = std::make_shared<bool>(false);
         sptr_isCalibrated = std::make_shared<bool>(false);
         sptr_isKinectReady = std::make_shared<bool>(false);
-        sptr_isChromakeyed = std::make_shared<bool>(false); // todo:check
+        sptr_isChromakeyed = std::make_shared<bool>(false);
         sptr_isEpsilonComputed = std::make_shared<bool>(false);
         sptr_isContextClustered = std::make_shared<bool>(false);
         sptr_isContextSegmented = std::make_shared<bool>(false);
 
-        sptr_pclVec = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_imgVec = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_points = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+        int size(m_numPoints * 3);
+        sptr_rawPcl = std::make_shared<std::vector<float>>(size);
+        sptr_rawImg = std::make_shared<std::vector<uint8_t>>(size);
+        sptr_rawPts = std::make_shared<std::vector<Point>>(size);
 
-        sptr_segmentedPcl
-            = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_segmentedImg
-            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_segmentedPoints
-            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+        sptr_segPcl = std::make_shared<std::vector<float>>(size);
+        sptr_segImg = std::make_shared<std::vector<uint8_t>>(size);
+        sptr_segPts = std::make_shared<std::vector<Point>>(size);
 
-        sptr_clusteredPcl
-            = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_clusteredImg
-            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_clusteredPoints
-            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+        sptr_cluPcl = std::make_shared<std::vector<float>>(size);
+        sptr_cluImg = std::make_shared<std::vector<uint8_t>>(size);
+        sptr_cluPts = std::make_shared<std::vector<Point>>(size);
 
-        sptr_tabletopPcl
-            = std::make_shared<std::vector<float>>(m_numPoints * 3);
-        sptr_tabletopImg
-            = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-        sptr_tabletopPoints
-            = std::make_shared<std::vector<Point>>(m_numPoints * 3);
+        sptr_ttpPcl = std::make_shared<std::vector<float>>(size);
+        sptr_ttpImg = std::make_shared<std::vector<uint8_t>>(size);
+        sptr_ttpPts = std::make_shared<std::vector<Point>>(size);
     }
     /**
      * segment
@@ -168,109 +144,84 @@ public:
     static void estimateEpsilon(
         const int& K, std::shared_ptr<Intact>& sptr_intact);
 
-    int getNumPoints();
-
-    /** pcl, image, and points */
-    void setPclVec(const std::vector<float>& pcl);
-    void setImgVec(const std::vector<uint8_t>& img);
-    void setPoints(const std::vector<Point>& points);
-
-    std::shared_ptr<std::vector<float>> getPcl();
-    std::shared_ptr<std::vector<uint8_t>> getImg();
-    std::shared_ptr<std::vector<Point>> getPoints();
-
-    /** segmented pcl, image, and points */
-    void setSegmentedPcl(const std::vector<float>& segment);
-    void setSegmentedImg(const std::vector<uint8_t>& segment);
-    void setSegmentedPoints(const std::vector<Point>& points);
-    void setSegmentedImgFrame(cv::Mat& imgData); // todo: check me
-    void setSegmentedImgData(uint8_t* ptr_segmentedImgData,
-        uint8_t* ptr_imgData, const int& imgSize);
-    void setSegmentedPclData(int16_t* ptr_segmentedPclData,
-        int16_t* ptr_pclData, const int& pclSize);
-
-    std::shared_ptr<int16_t*> getSegmentedPclData();
-    std::shared_ptr<uint8_t*> getSegmentedImgData();
-    std::shared_ptr<std::vector<float>> getSegmentedPcl();
-    std::shared_ptr<std::vector<uint8_t>> getSegmentedImg();
-    std::shared_ptr<std::vector<Point>> getSegmentedPoints();
-    std::shared_ptr<cv::Mat> getSegmentedImgFrame(); // todo: check me
-
-    /** clustered pcl, image, and points */
-    void setClusteredPcl(const std::vector<float>& points);
-    void setClusteredImg(const std::vector<uint8_t>& color);
-    void setClusteredPoints(const std::vector<Point>& points);
-
-    std::shared_ptr<std::vector<float>> getClusteredPcl();
-    std::shared_ptr<std::vector<uint8_t>> getClusteredImg();
-    std::shared_ptr<std::vector<Point>> getClusteredPoints();
-
-    /** tabletop pcl, image, and points */
-    void setTabletopPclData(int16_t* pcl); // todo check me
-    void setTabletopImgData(uint8_t* ptr_segmentedImgData, uint8_t* ptr_imgData,
-        const int& imgSize);
-    void setTabletopImgFrame(cv::Mat& imgData); // todo: check me
-    void setTabletopPcl(const std::vector<float>& points);
-    void setTabletopImg(const std::vector<uint8_t>& color);
-    void setTabletopPoints(const std::vector<Point>& points);
-
-    std::shared_ptr<int16_t*> getTabletopPclData(); // todo check me
-    std::shared_ptr<uint8_t*> getTabletopImgData(); // todo check me
-    std::shared_ptr<cv::Mat> getTabletopImgFrame(); // todo: check me
-    std::shared_ptr<std::vector<float>> getTabletopPcl();
-    std::shared_ptr<std::vector<uint8_t>> getTabletopImg();
-    std::shared_ptr<std::vector<Point>> getTabletopPoints();
-
-    /** segment boundary */
-    std::pair<Point, Point> getSegmentBoundary();
-    std::pair<Point, Point> getTabletopBoundary();
-
-    /** asynchronous flow-control semaphores */
-    void stop();
-
-    bool isRun();
-
-    bool isStop();
-
-    bool isSegmented();
-
-    bool isClustered();
-
-    bool isCalibrated();
-
-    void raiseRunFlag();
-
-    void raiseStopFlag();
-
-    bool isKinectReady();
-
-    void raiseEpsilonFlag();
-
-    void raiseChromakeyedFlag();
-
-    bool isEpsilonComputed();
-
-    void raiseSegmentedFlag();
-
-    void raiseClusteredFlag();
-
-    void raiseKinectReadyFlag();
-
-    void raiseCalibratedFlag();
-
     static void detectObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact);
 
-    int getDepthImgWidth();
-
-    int getDepthImgHeight();
-
-    void setDepthImgHeight(const int& height);
-
-    void setDepthImgWidth(const int& width);
-
     void chroma(std::shared_ptr<Intact>& sptr_intact);
 
+    /** segment & cluster boundaries */
+    std::pair<Point, Point> getSegmentBoundary();
+    std::pair<Point, Point> getTabletopBoundary();
+    void setSegmentBoundary(std::pair<Point, Point>& boundary);
+    void setTabletopBoundary(std::pair<Point, Point>& boundary);
+
+    /** raw pcl, image, and points */
+    void setRawPcl(const std::vector<float>& pcl);
+    void setRawImg(const std::vector<uint8_t>& img);
+    void setRawPts(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<float>> getRawPcl();
+    std::shared_ptr<std::vector<uint8_t>> getRawImg();
+
+    /** segmented pcl, image, and points */
+    void setSegFrame(cv::Mat& imgData);
+    void setSegPts(const std::vector<Point>& points);
+    void setSegPcl(const std::vector<float>& seg);
+    void setSegImg(const std::vector<uint8_t>& segment);
+    void setSegImgBuf(
+        uint8_t* ptr_segImgBuf, uint8_t* ptr_imgBuf, const int& imgSize);
+    void setSegPclBuf(
+        int16_t* ptr_segPclBuf, int16_t* ptr_pclBuf, const int& pclSize);
+    std::shared_ptr<int16_t*> getSegPclBuf();
+    std::shared_ptr<uint8_t*> getSegImgBuf();
+    std::shared_ptr<std::vector<Point>> getSegPts();
+    std::shared_ptr<std::vector<float>> getSegPcl();
+    std::shared_ptr<std::vector<uint8_t>> getSegImg();
+
+    /** clustered pcl, image, and points */
+    void setCluPcl(const std::vector<float>& points);
+    void setCluImg(const std::vector<uint8_t>& img);
+    void setCluPts(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getCluPts();
+    std::shared_ptr<std::vector<float>> getCluPcl();
+    std::shared_ptr<std::vector<uint8_t>> getCluImg();
+
+    /** tabletop pcl, image, and points */
+    void setTtpImgBuf(
+        uint8_t* ptr_ttpImgBuf, uint8_t* ptr_imgBuf, const int& imgSize);
+    void setTtpFrame(cv::Mat& imgData);
+    void setTtpPcl(const std::vector<float>& points);
+    void setTtpImg(const std::vector<uint8_t>& img);
+    void setTtpPts(const std::vector<Point>& points);
+    std::shared_ptr<uint8_t*> getTtpImgBuf();
+    std::shared_ptr<cv::Mat> getTtpFrame();
+    std::shared_ptr<std::vector<float>> getTtpPcl();
+    std::shared_ptr<std::vector<uint8_t>> getTtpImg();
+    std::shared_ptr<std::vector<Point>> getTtpPoints();
+
+    /** asynchronous flow-control semaphores */
+    void stop();
+    bool isRun();
+    bool isStop();
+    bool isSegmented();
+    bool isClustered();
+    bool isCalibrated();
     bool isChromakeyed();
+    bool isKinectReady();
+    bool isEpsilonComputed();
+
+    void raiseRunFlag();
+    void raiseStopFlag();
+    void raiseEpsilonFlag();
+    void raiseSegmentedFlag();
+    void raiseClusteredFlag();
+    void raiseCalibratedFlag();
+    void raiseKinectReadyFlag();
+    void raiseChromakeyedFlag();
+
+    int getNumPoints();
+    int getDepthImgWidth();
+    int getDepthImgHeight();
+    void setDepthImgHeight(const int& height);
+    void setDepthImgWidth(const int& width);
 };
 #endif /* INTACT_H */
