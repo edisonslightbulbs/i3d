@@ -64,24 +64,58 @@ void Intact::setDepthImgWidth(const int& width)
     m_depthWidth = width;
 }
 
+void Intact::setTabletopPclData(int16_t* pcl)
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    sptr_tabletopPclData = std::make_shared<short*>(pcl);
+}
+
+// void Intact::setTabletopImgData(uint8_t* image)
+// { // todo: [check] ...
+//     std::lock_guard<std::mutex> lck(m_mutex);
+//     sptr_tabletopImgData = std::make_shared<uint8_t*>(image);
+// }
+
+std::shared_ptr<int16_t*> Intact::getTabletopPclData()
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_tabletopPclData;
+}
+
+std::shared_ptr<uint8_t*> Intact::getTabletopImgData()
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_tabletopImgData;
+}
+
 void Intact::setSegmentedPclData(int16_t* pcl)
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
     sptr_segmentedPclData = std::make_shared<short*>(pcl);
 }
 
-void Intact::setSegmentedImgData(uint8_t* image)
+void Intact::setSegmentedImgData(
+    uint8_t* ptr_segmentedImgData, uint8_t* ptr_imgData, const int& imgSize)
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_segmentedImgData = std::make_shared<uint8_t*>(image);
+    std::memcpy(ptr_segmentedImgData, ptr_imgData, sizeof(uint8_t) * imgSize);
+    sptr_segmentedImgData = std::make_shared<uint8_t*>(ptr_segmentedImgData);
 }
 
-std::shared_ptr<int16_t*> Intact::getPclData()
+void Intact::setTabletopImgData(
+    uint8_t* ptr_tabletopImgData, uint8_t* ptr_imgData, const int& imgSize)
+{ // todo: [check] ...
+    std::lock_guard<std::mutex> lck(m_mutex);
+    std::memcpy(ptr_tabletopImgData, ptr_imgData, sizeof(uint8_t) * imgSize);
+    sptr_tabletopImgData = std::make_shared<uint8_t*>(ptr_tabletopImgData);
+}
+
+std::shared_ptr<int16_t*> Intact::getSegmentedPclData()
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_segmentedPclData;
 }
-std::shared_ptr<uint8_t*> Intact::getImgData()
+std::shared_ptr<uint8_t*> Intact::getSegmentedImgData()
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
     return sptr_segmentedImgData;
@@ -147,16 +181,22 @@ void Intact::setSegmentedImgFrame(cv::Mat& imgData) // todo check me please
     sptr_segmentedImgFrame = std::make_shared<cv::Mat>(imgData);
 }
 
-std::shared_ptr<cv::Mat> Intact::getTabletopImgData() // todo check me please
+std::shared_ptr<cv::Mat> Intact::getTabletopImgFrame() // todo check me please
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopImgData;
+    return sptr_tabletopImgFrame;
 }
 
-void Intact::setTabletopImgData(cv::Mat& imgData) // todo check me please
+void Intact::setTabletopImgFrame(cv::Mat& imgData) // todo check me please
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_tabletopImgData = std::make_shared<cv::Mat>(imgData);
+    sptr_tabletopImgFrame = std::make_shared<cv::Mat>(imgData);
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getTabletopPoints()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_tabletopPoints;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getSegmentedPoints()
@@ -307,6 +347,12 @@ void Intact::raiseKinectReadyFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_isKinectReady = true;
+}
+
+bool Intact::isChromakeyed()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return *sptr_isChromakeyed;
 }
 
 bool Intact::isKinectReady()
@@ -558,22 +604,96 @@ void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 #endif
 }
 
+void chromaPixelData(const int& index, uint8_t* ptr_data)
+{
+    // 65,171,93 -> green
+    ptr_data[4 * index + 0] = 93;  // blue
+    ptr_data[4 * index + 1] = 171; // green
+    ptr_data[4 * index + 2] = 65;  // red
+    ptr_data[4 * index + 3] = 0;   // alpha
+}
+
+#define CHROMAKEY 1
+void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
+{
+
+    int size = sptr_intact->getNumPoints() * 3;
+    int imgSize = sptr_intact->getNumPoints() * 4; // r, g, b, a
+    auto* ptr_TabletopImgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+    auto* ptr_imgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+
+    bool init = true;
+    while (!sptr_intact->isClustered()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    }
+
+    // 0. build tree
+#if CHROMAKEY == 1
+    while (sptr_intact->isRun()) {
+        /** update flow-control semaphore */
+        int16_t* ptr_pclData = *sptr_intact->getSegmentedPclData();
+        std::memcpy(ptr_imgData, *sptr_intact->getSegmentedImgData(),
+            sizeof(uint8_t) * imgSize);
+
+        // 1. modify ptr_imgData here this will be slow at first
+        // 2. build pclVec
+        // 3. build imgVec
+
+        int numPoints = sptr_intact->getNumPoints();
+        for (int i = 0; i < numPoints; i++) {
+            if (ptr_imgData[4 * i + 0] == 0 && ptr_imgData[4 * i + 1] == 0
+                && ptr_imgData[4 * i + 2] == 0 && ptr_imgData[4 * i + 3] == 0) {
+                continue;
+            }
+            float x = ptr_pclData[3 * i + 0];
+            float y = ptr_pclData[3 * i + 1];
+            float z = ptr_pclData[3 * i + 2];
+
+            Point point(x, y, z);
+            // use tree to find point
+            // std::vector<Point> tabletop = *sptr_intact->getTabletopPoints();
+
+            // for (auto& tabletopPoint : tabletop)
+            //     if (point == tabletopPoint){
+            //         chromaPixelData(i, ptr_imgData);
+            //     }
+        }
+
+        sptr_intact->setTabletopImgData(
+            ptr_TabletopImgData, ptr_imgData, imgSize);
+
+        int height = sptr_intact->getDepthImgHeight();
+        int width = sptr_intact->getDepthImgWidth();
+
+        /** create image for segmented tabletop in cv::Mat format */
+        cv::Mat frame = cv::Mat(height, width, CV_8UC4,
+            (void*)*sptr_intact->getTabletopImgData(), cv::Mat::AUTO_STEP)
+                            .clone();
+
+        sptr_intact->setTabletopImgFrame(frame);
+
+        if (init) {
+            init = false;
+            sptr_intact->raiseChromakeyedFlag();
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(500));
+    }
+#endif
+}
+
 #define DETECT_OBJECTS 1
 void Intact::detectObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
 #if DETECT_OBJECTS == 1
-    while (!sptr_intact->isClustered()) {
+    while (!sptr_intact->isChromakeyed()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
     while (sptr_intact->isRun()) {
         clock_t start = clock();
 
-        cv::Mat frame = *sptr_intact->getSegmentedImgFrame();
-
-        // if(sptr_intact->sptr_isChromakeyed){
-        //     frame = *sptr_intact->getTabletopImgData();
-        // }
+        // cv::Mat frame = *sptr_intact->getSegmentedImgFrame();
+        cv::Mat frame = *sptr_intact->getTabletopImgFrame();
 
         cv::Mat img;
         /** prepare tensor input */
@@ -629,6 +749,7 @@ void Intact::detectObjects(std::vector<std::string>& classnames,
         if (cv::waitKey(1) == 27) {
             sptr_intact->raiseStopFlag();
         }
+        std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
 #endif
 }
