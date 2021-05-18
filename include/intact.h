@@ -17,10 +17,6 @@ public:
     int m_depthWidth;
     int m_depthHeight;
 
-    /** initial data */
-    std::shared_ptr<int16_t*> sptr_segmentedPclData = nullptr; // todo:check
-    std::shared_ptr<uint8_t*> sptr_segmentedImgData = nullptr; // todo:check
-
     /** pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_pclVec = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_imgVec = nullptr;
@@ -31,6 +27,8 @@ public:
     std::shared_ptr<std::vector<uint8_t>> sptr_segmentedImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_segmentedPoints = nullptr;
     std::shared_ptr<cv::Mat> sptr_segmentedImgFrame = nullptr; // todo fixme
+    std::shared_ptr<int16_t*> sptr_segmentedPclData = nullptr; // todo:check
+    std::shared_ptr<uint8_t*> sptr_segmentedImgData = nullptr; // todo:check
 
     /** clustered pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_clusteredPcl = nullptr;
@@ -41,7 +39,9 @@ public:
     std::shared_ptr<std::vector<float>> sptr_tabletopPcl = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_tabletopImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_tabletopPoints = nullptr;
-    std::shared_ptr<cv::Mat> sptr_tabletopImgData = nullptr; // todo fixme
+    std::shared_ptr<cv::Mat> sptr_tabletopImgFrame = nullptr; // todo fixme
+    std::shared_ptr<int16_t*> sptr_tabletopPclData = nullptr; // todo:check
+    std::shared_ptr<uint8_t*> sptr_tabletopImgData = nullptr; // todo:check
 
     /** for pcl resource management */
     std::mutex m_mutex;
@@ -160,10 +160,10 @@ public:
 
     /** initial data */
     void setSegmentedPclData(int16_t* pcl);
-    void setSegmentedImgData(uint8_t* image);
+    // void setSegmentedImgData(uint8_t* image);
 
-    std::shared_ptr<int16_t*> getPclData();
-    std::shared_ptr<uint8_t*> getImgData();
+    std::shared_ptr<int16_t*> getSegmentedPclData();
+    std::shared_ptr<uint8_t*> getSegmentedImgData();
 
     /** pcl, image, and points */
     void setPclVec(const std::vector<float>& pcl);
@@ -195,14 +195,20 @@ public:
     std::shared_ptr<std::vector<Point>> getClusteredPoints();
 
     /** tabletop pcl, image, and points */
+    void setTabletopPclData(int16_t* pcl); // todo check me
+    void setTabletopImgData(uint8_t* ptr_segmentedImgData, uint8_t* ptr_imgData,
+        const int& imgSize);
+    void setTabletopImgFrame(cv::Mat& imgData); // todo: check me
     void setTabletopPcl(const std::vector<float>& points);
     void setTabletopImg(const std::vector<uint8_t>& color);
     void setTabletopPoints(const std::vector<Point>& points);
-    void setTabletopImgData(cv::Mat& imgData); // todo: check me
 
-    std::shared_ptr<cv::Mat> getTabletopImgData(); // todo: check me
+    std::shared_ptr<int16_t*> getTabletopPclData(); // todo check me
+    std::shared_ptr<uint8_t*> getTabletopImgData(); // todo check me
+    std::shared_ptr<cv::Mat> getTabletopImgFrame(); // todo: check me
     std::shared_ptr<std::vector<float>> getTabletopPcl();
     std::shared_ptr<std::vector<uint8_t>> getTabletopImg();
+    std::shared_ptr<std::vector<Point>> getTabletopPoints();
 
     /** segment boundary */
     std::pair<Point, Point> getSegmentBoundary();
@@ -250,5 +256,12 @@ public:
     void setDepthImgHeight(const int& height);
 
     void setDepthImgWidth(const int& width);
+
+    void chroma(std::shared_ptr<Intact>& sptr_intact);
+
+    bool isChromakeyed();
+
+    void setSegmentedImgData(uint8_t* ptr_segmentedImgData,
+        uint8_t* ptr_imgData, const int& imgSize);
 };
 #endif /* INTACT_H */
