@@ -22,37 +22,17 @@
 #include "viewer.h"
 #include "yolov5.h"
 
-// Developer option:
-// log tracing
-//
 #define LOG_TRACE 0
 #if LOG_TRACE == 1
-#define TRACE(string) LOG(INFO) << string
+#define log(string) LOG(INFO) << string
 #else
-#define TRACE
+#define log
 #endif
 
-// thread safe image handlers
-//
-
-// thread safe point-cloud handlers
-//
 int Intact::getNumPoints()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     return m_numPoints;
-}
-
-int Intact::getDepthImgWidth()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return m_depthWidth;
-}
-
-int Intact::getDepthImgHeight()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return m_depthHeight;
 }
 
 void Intact::setDepthImgHeight(const int& height)
@@ -67,229 +47,237 @@ void Intact::setDepthImgWidth(const int& width)
     m_depthWidth = width;
 }
 
-void Intact::setTabletopPclData(int16_t* pcl)
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_tabletopPclData = std::make_shared<short*>(pcl);
-}
-
-// void Intact::setTabletopImgData(uint8_t* image)
-// { // todo: [check] ...
-//     std::lock_guard<std::mutex> lck(m_mutex);
-//     sptr_tabletopImgData = std::make_shared<uint8_t*>(image);
-// }
-
-std::shared_ptr<int16_t*> Intact::getTabletopPclData()
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopPclData;
-}
-
-std::shared_ptr<uint8_t*> Intact::getTabletopImgData()
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopImgData;
-}
-
-void Intact::setSegmentedPclData(
-    int16_t* ptr_segmentedPclData, int16_t* ptr_pclData, const int& pclSize)
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    std::memcpy(ptr_segmentedPclData, ptr_pclData, sizeof(int16_t) * pclSize);
-    sptr_segmentedPclData = std::make_shared<int16_t*>(ptr_segmentedPclData);
-}
-
-void Intact::setSegmentedImgData(
-    uint8_t* ptr_segmentedImgData, uint8_t* ptr_imgData, const int& imgSize)
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    std::memcpy(ptr_segmentedImgData, ptr_imgData, sizeof(uint8_t) * imgSize);
-    sptr_segmentedImgData = std::make_shared<uint8_t*>(ptr_segmentedImgData);
-}
-
-void Intact::setTabletopImgData(
-    uint8_t* ptr_tabletopImgData, uint8_t* ptr_imgData, const int& imgSize)
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    std::memcpy(ptr_tabletopImgData, ptr_imgData, sizeof(uint8_t) * imgSize);
-    sptr_tabletopImgData = std::make_shared<uint8_t*>(ptr_tabletopImgData);
-}
-
-std::shared_ptr<int16_t*> Intact::getSegmentedPclData()
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedPclData;
-}
-std::shared_ptr<uint8_t*> Intact::getSegmentedImgData()
-{ // todo: [check] ...
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedImgData;
-}
-
-std::shared_ptr<std::vector<float>> Intact::getPcl()
+int Intact::getDepthImgWidth()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_pclVec;
+    return m_depthWidth;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getImg()
+int Intact::getDepthImgHeight()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_imgVec;
+    return m_depthHeight;
 }
 
-void Intact::setPclVec(const std::vector<float>& pcl)
+void Intact::setSegmentBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_pclVec = pcl;
+    m_segmentBoundary = boundary;
 }
 
-void Intact::setImgVec(const std::vector<uint8_t>& img)
+std::pair<Point, Point> Intact::getSegmentBoundary()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_imgVec = img;
+    return m_segmentBoundary;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getPoints()
+void Intact::setTabletopBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_points;
+    m_tabletopBoundary = boundary;
 }
 
-void Intact::setPoints(const std::vector<Point>& points)
+std::pair<Point, Point> Intact::getTabletopBoundary()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_points = points;
+    return m_tabletopBoundary;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getSegmentedPcl()
+void Intact::setSegPclBuf(
+    int16_t* ptr_segPclBuf, int16_t* ptr_pclBuf, const int& pclSize)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedPcl;
+    std::memcpy(ptr_segPclBuf, ptr_pclBuf, sizeof(int16_t) * pclSize);
+    sptr_segPclBuf = std::make_shared<int16_t*>(ptr_segPclBuf);
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getSegmentedImg()
+std::shared_ptr<int16_t*> Intact::getSegPclBuf()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedImg;
+    return sptr_segPclBuf;
 }
 
-std::shared_ptr<cv::Mat> Intact::getSegmentedImgFrame() // todo check me please
+void Intact::setSegImgBuf(
+    uint8_t* ptr_segImgBuf, uint8_t* ptr_imgBuf, const int& imgSize)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedImgFrame;
+    std::memcpy(ptr_segImgBuf, ptr_imgBuf, sizeof(uint8_t) * imgSize);
+    sptr_segImgBuf = std::make_shared<uint8_t*>(ptr_segImgBuf);
 }
 
-void Intact::setSegmentedImgFrame(cv::Mat& imgData) // todo check me please
+std::shared_ptr<uint8_t*> Intact::getSegImgBuf()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_segmentedImgFrame = std::make_shared<cv::Mat>(imgData);
+    return sptr_segImgBuf;
 }
 
-std::shared_ptr<cv::Mat> Intact::getTabletopImgFrame() // todo check me please
+void Intact::setTtpImgBuf(
+    uint8_t* ptr_ttpImgBuf, uint8_t* ptr_imgBuf, const int& imgSize)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopImgFrame;
+    std::memcpy(ptr_ttpImgBuf, ptr_imgBuf, sizeof(uint8_t) * imgSize);
+    sptr_ttpImgBuf = std::make_shared<uint8_t*>(ptr_ttpImgBuf);
 }
 
-void Intact::setTabletopImgFrame(cv::Mat& imgData) // todo check me please
+std::shared_ptr<uint8_t*> Intact::getTtpImgBuf()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_tabletopImgFrame = std::make_shared<cv::Mat>(imgData);
+    return sptr_ttpImgBuf;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getTabletopPoints()
+void Intact::setRawPcl(const std::vector<float>& pcl)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopPoints;
+    *sptr_rawPcl = pcl;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getSegmentedPoints()
+std::shared_ptr<std::vector<float>> Intact::getRawPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_segmentedPoints;
+    return sptr_rawPcl;
 }
 
-void Intact::setSegmentedPcl(const std::vector<float>& segment)
+std::shared_ptr<std::vector<uint8_t>> Intact::getRawImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentedPcl = segment;
+    return sptr_rawImg;
 }
 
-void Intact::setSegmentedImg(const std::vector<uint8_t>& segment)
+void Intact::setRawImg(const std::vector<uint8_t>& img)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentedImg = segment;
+    *sptr_rawImg = img;
 }
 
-void Intact::setSegmentedPoints(const std::vector<Point>& points)
+void Intact::setRawPts(const std::vector<Point>& points) // todo what points?
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_segmentedPoints = points;
+    *sptr_rawPts = points;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getClusteredPcl()
+std::shared_ptr<std::vector<float>> Intact::getSegPcl() // todo set?
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_clusteredPcl;
+    return sptr_segPcl;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getClusteredImg()
+std::shared_ptr<std::vector<uint8_t>> Intact::getSegImg() // todo set?
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_clusteredImg;
+    return sptr_segImg;
 }
 
-void Intact::setClusteredPcl(const std::vector<float>& points)
+void Intact::setSegFrame(cv::Mat& imgData) // todo check me please
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clusteredPcl = points;
-}
-void Intact::setClusteredImg(const std::vector<uint8_t>& color)
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clusteredImg = color;
+    sptr_segFrame = std::make_shared<cv::Mat>(imgData);
 }
 
-void Intact::setClusteredPoints(const std::vector<Point>& points)
+void Intact::setTtpFrame(cv::Mat& imgData)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_clusteredPoints = points;
+    sptr_ttpFrame = std::make_shared<cv::Mat>(imgData);
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getClusteredPoints()
+std::shared_ptr<cv::Mat> Intact::getTtpFrame()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_clusteredPoints;
+    return sptr_ttpFrame;
 }
 
-void Intact::setTabletopPcl(const std::vector<float>& points)
+std::shared_ptr<std::vector<Point>> Intact::getTtpPoints()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_tabletopPcl = points;
-}
-void Intact::setTabletopImg(const std::vector<uint8_t>& color)
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_tabletopImg = color;
+    return sptr_ttpPts;
 }
 
-void Intact::setTabletopPoints(const std::vector<Point>& points)
+std::shared_ptr<std::vector<Point>> Intact::getSegPts()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_tabletopPoints = points;
+    return sptr_segPts;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getTabletopPcl()
+void Intact::setSegPcl(const std::vector<float>& seg)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopPcl;
+    *sptr_segPcl = seg;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getTabletopImg()
+void Intact::setSegImg(const std::vector<uint8_t>& segment)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_tabletopImg;
+    *sptr_segImg = segment;
+}
+
+void Intact::setSegPts(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_segPts = points;
+}
+
+void Intact::setCluPcl(const std::vector<float>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_cluPcl = points;
+}
+
+std::shared_ptr<std::vector<float>> Intact::getCluPcl()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_cluPcl;
+}
+
+void Intact::setCluImg(const std::vector<uint8_t>& img)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_cluImg = img;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getCluImg()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_cluImg;
+}
+
+void Intact::setCluPts(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_cluPts = points;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getCluPts()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_cluPts;
+}
+
+void Intact::setTtpPcl(const std::vector<float>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_ttpPcl = points;
+}
+
+std::shared_ptr<std::vector<float>> Intact::getTtpPcl()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_ttpPcl;
+}
+void Intact::setTtpImg(const std::vector<uint8_t>& img)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_ttpImg = img;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Intact::getTtpImg()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return sptr_ttpImg;
+}
+
+void Intact::setTtpPts(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_ttpPts = points;
 }
 
 // thread-safe semaphores
@@ -328,12 +316,6 @@ void Intact::raiseStopFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     *sptr_stop = true;
-}
-
-void Intact::stop()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_run = false;
 }
 
 bool Intact::isRun()
@@ -396,16 +378,10 @@ void Intact::raiseCalibratedFlag()
     *sptr_isCalibrated = true;
 }
 
-std::pair<Point, Point> Intact::getSegmentBoundary()
+void Intact::stop()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_segmentBoundary;
-}
-
-std::pair<Point, Point> Intact::getTabletopBoundary()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return m_tabletopBoundary;
+    *sptr_run = false;
 }
 
 #define SEGMENT 1
@@ -419,22 +395,22 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 
     while (sptr_intact->isRun()) {
         /** cast point cloud to Point type definition for processing */
-        std::vector<Point> points = cast::toPoint(*sptr_intact->getPcl(),
-            *sptr_intact->getImg(), sptr_intact->getNumPoints());
-        sptr_intact->setPoints(points); // <- update raw points
+        std::vector<Point> points = cast::toPoint(*sptr_intact->getRawPcl(),
+            *sptr_intact->getRawImg(), sptr_intact->getNumPoints());
+        sptr_intact->setRawPts(points); // <- update raw points
 
         /** segment tabletop interaction context ~15ms */
         std::vector<Point> seg = region::segment(points);
         std::pair<Point, Point> boundary = region::queryBoundary(seg);
         // todo fix this !!
         setSegmentBoundary(boundary);
-        sptr_intact->setSegmentedPoints(seg); // <- update segment points
+        sptr_intact->setSegPts(seg); // <- update segment points
 
         /** update flow control semaphores */
         if (init) {
             init = false;
             sptr_intact->raiseSegmentedFlag();
-            TRACE("-- context segmented"); /*NOLINT*/
+            log("-- context segmented"); /*NOLINT*/
         }
     }
 #endif
@@ -519,8 +495,8 @@ void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
 
-    TRACE("-- evaluating k nearest neighbours"); /*NOLINT*/
-    std::vector<Point> points = *sptr_intact->getSegmentedPoints();
+    log("-- evaluating k nearest neighbours"); /*NOLINT*/
+    std::vector<Point> points = *sptr_intact->getSegPts();
 
     const int testVal = 3;
     // testVal used for arbitrary test for release, use
@@ -568,7 +544,7 @@ void Intact::cluster(
 
             /** cluster segmented context ~130ms/loop iteration */
             std::vector<std::vector<Point>> clusters
-                = dbscan::cluster(*sptr_intact->getSegmentedPoints(), E, N);
+                = dbscan::cluster(*sptr_intact->getSegPts(), E, N);
 
             /** create object list using the density clusters */
             std::vector<Object> objects;
@@ -581,17 +557,17 @@ void Intact::cluster(
             std::pair<std::vector<float>, std::vector<uint8_t>>
                 spatialDensityClusters = cast::toClusteredPcl(
                     objects.back().m_points); // objects.back() = all clusters
-            sptr_intact->setClusteredPcl(spatialDensityClusters.first);
-            sptr_intact->setClusteredImg(spatialDensityClusters.second);
-            sptr_intact->setClusteredPoints(objects.back().m_points);
+            sptr_intact->setCluPcl(spatialDensityClusters.first);
+            sptr_intact->setCluImg(spatialDensityClusters.second);
+            sptr_intact->setCluPts(objects.back().m_points);
 
             /** cast object points to pcl format  for rendering */
             std::pair<std::vector<float>, std::vector<uint8_t>> object
                 = cast::toClusteredPcl(
                     objects.front().m_points); // objects.front() = tabletop
-            sptr_intact->setTabletopPcl(object.first);
-            sptr_intact->setTabletopImg(object.second);
-            sptr_intact->setTabletopPoints(objects.front().m_points);
+            sptr_intact->setTtpPcl(object.first);
+            sptr_intact->setTtpImg(object.second);
+            sptr_intact->setTtpPts(objects.front().m_points);
 
             std::pair<Point, Point> boundary
                 = region::queryBoundary(objects.front().m_points);
@@ -601,7 +577,7 @@ void Intact::cluster(
             if (init) {
                 init = false;
                 WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
-                    *sptr_intact->getClusteredPoints()); /*NOLINT*/
+                    *sptr_intact->getCluPts()); /*NOLINT*/
                 sptr_intact->raiseClusteredFlag();
             }
         }
@@ -667,9 +643,9 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
 
 #if CHROMAKEY == 1
     while (sptr_intact->isRun()) {
-        std::memcpy(ptr_pclData, *sptr_intact->getSegmentedPclData(),
+        std::memcpy(ptr_pclData, *sptr_intact->getSegPclBuf(),
             sizeof(int16_t) * pclSize);
-        std::memcpy(ptr_imgData, *sptr_intact->getSegmentedImgData(),
+        std::memcpy(ptr_imgData, *sptr_intact->getSegImgBuf(),
             sizeof(uint8_t) * imgSize);
 
         // todo:
@@ -703,18 +679,17 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
         // sptr_intact->setTabletopPclData(
         //     ptr_TabletopPclData, ptr_pclData, pclSize);
 
-        sptr_intact->setTabletopImgData(
-            ptr_TabletopImgData, ptr_imgData, imgSize);
+        sptr_intact->setTtpImgBuf(ptr_TabletopImgData, ptr_imgData, imgSize);
 
         int height = sptr_intact->getDepthImgHeight();
         int width = sptr_intact->getDepthImgWidth();
 
         /** create image for segmented tabletop in cv::Mat format */
         cv::Mat frame = cv::Mat(height, width, CV_8UC4,
-            (void*)*sptr_intact->getTabletopImgData(), cv::Mat::AUTO_STEP)
+            (void*)*sptr_intact->getTtpImgBuf(), cv::Mat::AUTO_STEP)
                             .clone();
 
-        sptr_intact->setTabletopImgFrame(frame);
+        sptr_intact->setTtpFrame(frame);
 
         /** update flow-control semaphore */
         if (init) {
@@ -738,7 +713,7 @@ void Intact::detectObjects(std::vector<std::string>& classnames,
         clock_t start = clock();
 
         // cv::Mat frame = *sptr_intact->getSegmentedImgFrame();
-        cv::Mat frame = *sptr_intact->getTabletopImgFrame();
+        cv::Mat frame = *sptr_intact->getTtpFrame();
 
         cv::Mat img;
         /** prepare tensor input */
