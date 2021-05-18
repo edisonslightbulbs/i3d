@@ -1,6 +1,8 @@
 #include <chrono>
 #include <k4a/k4a.hpp>
+#include <knn.h>
 #include <opencv2/core.hpp>
+#include <searcher.h>
 #include <thread>
 #include <utility>
 
@@ -15,6 +17,7 @@
 #include "object.h"
 #include "ply.h"
 #include "region.h"
+#include "searcher.h"
 #include "timer.h"
 #include "viewer.h"
 #include "yolov5.h"
@@ -88,10 +91,12 @@ std::shared_ptr<uint8_t*> Intact::getTabletopImgData()
     return sptr_tabletopImgData;
 }
 
-void Intact::setSegmentedPclData(int16_t* pcl)
+void Intact::setSegmentedPclData(
+    int16_t* ptr_segmentedPclData, int16_t* ptr_pclData, const int& pclSize)
 { // todo: [check] ...
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_segmentedPclData = std::make_shared<short*>(pcl);
+    std::memcpy(ptr_segmentedPclData, ptr_pclData, sizeof(int16_t) * pclSize);
+    sptr_segmentedPclData = std::make_shared<int16_t*>(ptr_segmentedPclData);
 }
 
 void Intact::setSegmentedImgData(
@@ -397,6 +402,12 @@ std::pair<Point, Point> Intact::getSegmentBoundary()
     return m_segmentBoundary;
 }
 
+std::pair<Point, Point> Intact::getTabletopBoundary()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_tabletopBoundary;
+}
+
 #define SEGMENT 1
 void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 {
@@ -415,6 +426,7 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
         /** segment tabletop interaction context ~15ms */
         std::vector<Point> seg = region::segment(points);
         std::pair<Point, Point> boundary = region::queryBoundary(seg);
+        // todo fix this !!
         setSegmentBoundary(boundary);
         sptr_intact->setSegmentedPoints(seg); // <- update segment points
 
@@ -581,6 +593,10 @@ void Intact::cluster(
             sptr_intact->setTabletopImg(object.second);
             sptr_intact->setTabletopPoints(objects.front().m_points);
 
+            std::pair<Point, Point> boundary
+                = region::queryBoundary(objects.front().m_points);
+            sptr_intact->setTabletopBoundary(boundary);
+
             /** sequence cross thread semaphore */
             if (init) {
                 init = false;
@@ -613,31 +629,52 @@ void chromaPixelData(const int& index, uint8_t* ptr_data)
     ptr_data[4 * index + 3] = 0;   // alpha
 }
 
+bool outsideBoundary(
+    const int& index, const short* ptr_data, const Point& min, const Point& max)
+{
+    if (max.m_xyz[2] == __FLT_MAX__ || min.m_xyz[2] == __FLT_MIN__) {
+        return true;
+    }
+    if ((float)ptr_data[3 * index + 0] > max.m_xyz[0]
+        || (float)ptr_data[3 * index + 0] < min.m_xyz[0]
+        || (float)ptr_data[3 * index + 1] > max.m_xyz[1]
+        || (float)ptr_data[3 * index + 1] < min.m_xyz[1]
+        || (float)ptr_data[3 * index + 2] > max.m_xyz[2]
+        || (float)ptr_data[3 * index + 2] < min.m_xyz[2]) {
+        return true;
+    }
+    return false;
+}
+
 #define CHROMAKEY 1
 void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
 {
-
-    int size = sptr_intact->getNumPoints() * 3;
     int imgSize = sptr_intact->getNumPoints() * 4; // r, g, b, a
-    auto* ptr_TabletopImgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+    int pclSize = sptr_intact->getNumPoints() * 3; // x, y, z
+
     auto* ptr_imgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+    auto* ptr_TabletopImgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+
+    auto* ptr_pclData = (int16_t*)malloc(sizeof(int16_t*) * pclSize);
+    // auto* ptr_TabletopPclData = (int16_t*)malloc(sizeof(int16_t*) * pclSize);
 
     bool init = true;
     while (!sptr_intact->isClustered()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
 
-    // 0. build tree
+    // todo: create helpers.hpp
+
 #if CHROMAKEY == 1
     while (sptr_intact->isRun()) {
-        /** update flow-control semaphore */
-        int16_t* ptr_pclData = *sptr_intact->getSegmentedPclData();
+        std::memcpy(ptr_pclData, *sptr_intact->getSegmentedPclData(),
+            sizeof(int16_t) * pclSize);
         std::memcpy(ptr_imgData, *sptr_intact->getSegmentedImgData(),
             sizeof(uint8_t) * imgSize);
 
-        // 1. modify ptr_imgData here this will be slow at first
-        // 2. build pclVec
-        // 3. build imgVec
+        // todo:
+        //   1. build pclVec
+        //   2. build imgVec
 
         int numPoints = sptr_intact->getNumPoints();
         for (int i = 0; i < numPoints; i++) {
@@ -645,19 +682,26 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
                 && ptr_imgData[4 * i + 2] == 0 && ptr_imgData[4 * i + 3] == 0) {
                 continue;
             }
-            float x = ptr_pclData[3 * i + 0];
-            float y = ptr_pclData[3 * i + 1];
-            float z = ptr_pclData[3 * i + 2];
 
-            Point point(x, y, z);
-            // use tree to find point
-            // std::vector<Point> tabletop = *sptr_intact->getTabletopPoints();
+            if (outsideBoundary(i, ptr_pclData,
+                    sptr_intact->getTabletopBoundary().first,
+                    sptr_intact->getTabletopBoundary().second)) {
+                continue;
+            }
+            chromaPixelData(i, ptr_imgData);
 
-            // for (auto& tabletopPoint : tabletop)
-            //     if (point == tabletopPoint){
-            //         chromaPixelData(i, ptr_imgData);
-            //     }
+            // float x = ptr_pclData[3 * i + 0];
+            // float y = ptr_pclData[3 * i + 1];
+            // float z = ptr_pclData[3 * i + 2];
+            // Point queryPoint(x, y, z);
+            // if (searcher::pointFound(*sptr_intact->getTabletopPoints(),
+            // queryPoint)){
+            //           chromaPixelData(i, ptr_imgData);
+            // }
         }
+
+        // sptr_intact->setTabletopPclData(
+        //     ptr_TabletopPclData, ptr_pclData, pclSize);
 
         sptr_intact->setTabletopImgData(
             ptr_TabletopImgData, ptr_imgData, imgSize);
@@ -672,6 +716,7 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
 
         sptr_intact->setTabletopImgFrame(frame);
 
+        /** update flow-control semaphore */
         if (init) {
             init = false;
             sptr_intact->raiseChromakeyedFlag();
