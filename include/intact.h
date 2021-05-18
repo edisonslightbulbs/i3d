@@ -57,6 +57,7 @@ public:
     std::shared_ptr<bool> sptr_isChromakeyed; // todo:check
 
     std::pair<Point, Point> m_segmentBoundary {};
+    std::pair<Point, Point> m_tabletopBoundary {};
 
     void setSegmentBoundary(std::pair<Point, Point>& boundary)
     {
@@ -64,15 +65,26 @@ public:
         m_segmentBoundary = boundary;
     }
 
+    void setTabletopBoundary(std::pair<Point, Point>& boundary)
+    {
+        std::lock_guard<std::mutex> lck(m_mutex);
+        m_tabletopBoundary = boundary;
+    }
+
     /** initialize API */
     explicit Intact(int& numPoints)
         : m_numPoints(numPoints)
     {
-        /** initialize infinite boundary */
-        Point lower(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
-        Point upper(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+        /** initial segment upper and lower boundary */
+        Point sUB(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+        Point sLB(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+        m_segmentBoundary = { sUB, sLB };
 
-        m_segmentBoundary = { lower, upper };
+        /** initial tabletop upper and lower boundary */
+        Point tUB(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+        Point tLB(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+
+        m_tabletopBoundary = { tUB, tLB };
 
         sptr_run = std::make_shared<bool>(false);
         sptr_stop = std::make_shared<bool>(false);
@@ -158,13 +170,6 @@ public:
 
     int getNumPoints();
 
-    /** initial data */
-    void setSegmentedPclData(int16_t* pcl);
-    // void setSegmentedImgData(uint8_t* image);
-
-    std::shared_ptr<int16_t*> getSegmentedPclData();
-    std::shared_ptr<uint8_t*> getSegmentedImgData();
-
     /** pcl, image, and points */
     void setPclVec(const std::vector<float>& pcl);
     void setImgVec(const std::vector<uint8_t>& img);
@@ -179,7 +184,13 @@ public:
     void setSegmentedImg(const std::vector<uint8_t>& segment);
     void setSegmentedPoints(const std::vector<Point>& points);
     void setSegmentedImgFrame(cv::Mat& imgData); // todo: check me
+    void setSegmentedImgData(uint8_t* ptr_segmentedImgData,
+        uint8_t* ptr_imgData, const int& imgSize);
+    void setSegmentedPclData(int16_t* ptr_segmentedPclData,
+        int16_t* ptr_pclData, const int& pclSize);
 
+    std::shared_ptr<int16_t*> getSegmentedPclData();
+    std::shared_ptr<uint8_t*> getSegmentedImgData();
     std::shared_ptr<std::vector<float>> getSegmentedPcl();
     std::shared_ptr<std::vector<uint8_t>> getSegmentedImg();
     std::shared_ptr<std::vector<Point>> getSegmentedPoints();
@@ -212,6 +223,7 @@ public:
 
     /** segment boundary */
     std::pair<Point, Point> getSegmentBoundary();
+    std::pair<Point, Point> getTabletopBoundary();
 
     /** asynchronous flow-control semaphores */
     void stop();
@@ -260,8 +272,5 @@ public:
     void chroma(std::shared_ptr<Intact>& sptr_intact);
 
     bool isChromakeyed();
-
-    void setSegmentedImgData(uint8_t* ptr_segmentedImgData,
-        uint8_t* ptr_imgData, const int& imgSize);
 };
 #endif /* INTACT_H */
