@@ -103,7 +103,7 @@ public:
      * @param sptr_intact
      *   Instance of API call.
      */
-    void segment(std::shared_ptr<Intact>& sptr_intact);
+    static void segment(std::shared_ptr<Intact>& sptr_intact);
 
     static void calibrate(std::shared_ptr<Intact>& sptr_intact);
 
@@ -132,7 +132,7 @@ public:
         const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact);
 
     /**
-     * estimateEpsilon
+     * approxEpsilon
      *   Estimates size of epsilon neighbourhood using knn.
      *
      * @param K
@@ -141,7 +141,7 @@ public:
      * @param sptr_intact
      *   Instance of API call.
      */
-    static void estimateEpsilon(
+    static void approxEpsilon(
         const int& K, std::shared_ptr<Intact>& sptr_intact);
 
     static void detectObjects(std::vector<std::string>& classnames,
@@ -152,8 +152,8 @@ public:
     /** segment & cluster boundaries */
     std::pair<Point, Point> getSegmentBoundary();
     std::pair<Point, Point> getTabletopBoundary();
-    void setSegmentBoundary(std::pair<Point, Point>& boundary);
-    void setTabletopBoundary(std::pair<Point, Point>& boundary);
+    void setSegBoundary(std::pair<Point, Point>& boundary);
+    void setTtpBoundary(std::pair<Point, Point>& boundary);
 
     /** raw pcl, image, and points */
     void setRawPcl(const std::vector<float>& pcl);
@@ -204,17 +204,16 @@ public:
     bool isStop();
     bool isSegmented();
     bool isClustered();
-    bool isCalibrated();
+    // bool isCalibrated();
     bool isChromakeyed();
     bool isKinectReady();
-    bool isEpsilonComputed();
 
     void raiseRunFlag();
     void raiseStopFlag();
     void raiseEpsilonFlag();
     void raiseSegmentedFlag();
     void raiseClusteredFlag();
-    void raiseCalibratedFlag();
+    // void raiseCalibratedFlag();
     void raiseKinectReadyFlag();
     void raiseChromakeyedFlag();
 
