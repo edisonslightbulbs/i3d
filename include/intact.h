@@ -19,12 +19,12 @@ private:
     int m_depthWidth {};
     int m_depthHeight {};
 
-    /** pcl, image, and points */
+    /** for raw pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_rawPcl = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_rawImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_rawPts = nullptr;
 
-    /** segmented pcl, image, and points */
+    /** for segmented pcl, image, and points */
     std::shared_ptr<cv::Mat> sptr_segFrame = nullptr;
     std::shared_ptr<int16_t*> sptr_segPclBuf = nullptr;
     std::shared_ptr<uint8_t*> sptr_segImgBuf = nullptr;
@@ -32,12 +32,12 @@ private:
     std::shared_ptr<std::vector<uint8_t>> sptr_segImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_segPts = nullptr;
 
-    /** clustered pcl, image, and points */
+    /** for clustered pcl, image, and points */
     std::shared_ptr<std::vector<float>> sptr_clustPcl = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_clustImg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_clustPts = nullptr;
 
-    /** tabletop pcl, image, and points */
+    /** for tabletop pcl, image, and points */
     std::shared_ptr<cv::Mat> sptr_ttopFrame = nullptr;
     std::shared_ptr<int16_t*> sptr_ttopPclBuf = nullptr;
     std::shared_ptr<uint8_t*> sptr_ttopImgBuf = nullptr;
@@ -55,6 +55,7 @@ private:
     std::shared_ptr<bool> sptr_isChromakeyed;
     std::shared_ptr<bool> sptr_isEpsilonComputed;
 
+    /** for segment and cluster boundaries */
     std::pair<Point, Point> m_segBoundary {};
     std::pair<Point, Point> m_ttopBoundary {};
 
