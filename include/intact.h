@@ -13,7 +13,9 @@
 class Intact {
 
 private:
-    std::mutex m_mutex;
+    std::mutex m_bufMutex;
+    std::mutex m_updateMutex;
+    std::mutex m_flagMutex;
 
     int m_numPoints;
     int m_depthWidth {};
