@@ -27,6 +27,45 @@
 #define log
 #endif
 
+Intact::Intact(int& numPoints)
+    : m_numPoints(numPoints)
+{
+    /** initialize infinite boundaries */
+    Point segUB(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+    Point segLB(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+    Point ttopUB(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+    Point ttopLB(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+
+    m_segBoundary = { segUB, segLB };
+    m_ttopBoundary = { ttopUB, ttopLB };
+
+    sptr_run = std::make_shared<bool>(false);
+    sptr_stop = std::make_shared<bool>(false);
+    sptr_isClustered = std::make_shared<bool>(false);
+    sptr_isSegmented = std::make_shared<bool>(false);
+    sptr_isCalibrated = std::make_shared<bool>(false);
+    sptr_isKinectReady = std::make_shared<bool>(false);
+    sptr_isChromakeyed = std::make_shared<bool>(false);
+    sptr_isEpsilonComputed = std::make_shared<bool>(false);
+
+    int size(m_numPoints * 3);
+    sptr_rawPcl = std::make_shared<std::vector<float>>(size);
+    sptr_rawImg = std::make_shared<std::vector<uint8_t>>(size);
+    sptr_rawPts = std::make_shared<std::vector<Point>>(size);
+
+    sptr_segPcl = std::make_shared<std::vector<float>>(size);
+    sptr_segImg = std::make_shared<std::vector<uint8_t>>(size);
+    sptr_segPts = std::make_shared<std::vector<Point>>(size);
+
+    sptr_clustPcl = std::make_shared<std::vector<float>>(size);
+    sptr_clustImg = std::make_shared<std::vector<uint8_t>>(size);
+    sptr_clustPts = std::make_shared<std::vector<Point>>(size);
+
+    sptr_ttopPcl = std::make_shared<std::vector<float>>(size);
+    sptr_ttopImg = std::make_shared<std::vector<uint8_t>>(size);
+    sptr_ttopPts = std::make_shared<std::vector<Point>>(size);
+}
+
 int Intact::getNumPoints()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
