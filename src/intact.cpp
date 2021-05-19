@@ -528,9 +528,9 @@ void Intact::cluster(
 #if CLUSTER
     {
         WAIT_UNTIL_SEGMENTATION_DONE; /*NOLINT*/
-        bool init = true;
-
         typedef std::pair<std::vector<float>, std::vector<uint8_t>> pclFmt;
+
+        bool init = true;
         while (sptr_intact->isRun()) {
             std::vector<std::vector<Point>> clusters
                 = dbscan::cluster(*sptr_intact->getSegPts(), E, N);
