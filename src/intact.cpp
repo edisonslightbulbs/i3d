@@ -68,252 +68,252 @@ Intact::Intact(int& numPoints)
 
 int Intact::getNumPoints()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return m_numPoints;
 }
 
 void Intact::setDepthImgHeight(const int& height)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     m_depthHeight = height;
 }
 
 void Intact::setDepthImgWidth(const int& width)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     m_depthWidth = width;
 }
 
 int Intact::getDepthImgWidth()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     return m_depthWidth;
 }
 
 int Intact::getDepthImgHeight()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     return m_depthHeight;
 }
 
 void Intact::setSegBoundary(std::pair<Point, Point>& boundary)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     m_segBoundary = boundary;
 }
 
 std::pair<Point, Point> Intact::getSegBoundary()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return m_segBoundary;
 }
 
 void Intact::setTtpBoundary(std::pair<Point, Point>& boundary)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     m_ttopBoundary = boundary;
 }
 
 std::pair<Point, Point> Intact::getTtopBoundary()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return m_ttopBoundary;
 }
 
 void Intact::setSegPclBuf(
     int16_t* ptr_segPclBuf, int16_t* ptr_pclBuf, const int& pclSize)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     std::memcpy(ptr_segPclBuf, ptr_pclBuf, sizeof(int16_t) * pclSize);
     sptr_segPclBuf = std::make_shared<int16_t*>(ptr_segPclBuf);
 }
 
 std::shared_ptr<int16_t*> Intact::getSegPclBuf()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     return sptr_segPclBuf;
 }
 
 void Intact::setSegImgBuf(
     uint8_t* ptr_segImgBuf, uint8_t* ptr_imgBuf, const int& imgSize)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     std::memcpy(ptr_segImgBuf, ptr_imgBuf, sizeof(uint8_t) * imgSize);
     sptr_segImgBuf = std::make_shared<uint8_t*>(ptr_segImgBuf);
 }
 
 std::shared_ptr<uint8_t*> Intact::getSegImgBuf()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     return sptr_segImgBuf;
 }
 
 void Intact::setTtopImgBuf(
     uint8_t* ptr_ttpImgBuf, uint8_t* ptr_imgBuf, const int& imgSize)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     std::memcpy(ptr_ttpImgBuf, ptr_imgBuf, sizeof(uint8_t) * imgSize);
     sptr_ttopImgBuf = std::make_shared<uint8_t*>(ptr_ttpImgBuf);
 }
 
 std::shared_ptr<uint8_t*> Intact::getTtopImgBuf()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     return sptr_ttopImgBuf;
 }
 
 void Intact::setRawPcl(const std::vector<float>& pcl)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_rawPcl = pcl;
 }
 
 std::shared_ptr<std::vector<float>> Intact::getRawPcl()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_rawPcl;
 }
 
 std::shared_ptr<std::vector<uint8_t>> Intact::getRawImg()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_rawImg;
 }
 
 void Intact::setRawImg(const std::vector<uint8_t>& img)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_rawImg = img;
 }
 
-void Intact::setRawPts(const std::vector<Point>& points) // todo what points?
+void Intact::setRawPts(const std::vector<Point>& points)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_rawPts = points;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getSegPcl() // todo set?
+std::shared_ptr<std::vector<float>> Intact::getSegPcl()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_segPcl;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getSegImg() // todo set?
+std::shared_ptr<std::vector<uint8_t>> Intact::getSegImg()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_segImg;
 }
 
 void Intact::setSegFrame(cv::Mat& imgData) // todo check me please
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     sptr_segFrame = std::make_shared<cv::Mat>(imgData);
 }
 
 void Intact::setTtopFrame(cv::Mat& imgData)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     sptr_ttopFrame = std::make_shared<cv::Mat>(imgData);
 }
 
 std::shared_ptr<cv::Mat> Intact::getTtopFrame()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_bufMutex);
     return sptr_ttopFrame;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getTtopPoints()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_ttopPts;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getSegPts()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_segPts;
 }
 
 void Intact::setSegPcl(const std::vector<float>& seg)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_segPcl = seg;
 }
 
 void Intact::setSegImg(const std::vector<uint8_t>& segment)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_segImg = segment;
 }
 
 void Intact::setSegPts(const std::vector<Point>& points)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_segPts = points;
 }
 
 void Intact::setClustPcl(const std::vector<float>& points)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_clustPcl = points;
 }
 
 std::shared_ptr<std::vector<float>> Intact::getClustPcl()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_clustPcl;
 }
 
 void Intact::setClustImg(const std::vector<uint8_t>& img)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_clustImg = img;
 }
 
 std::shared_ptr<std::vector<uint8_t>> Intact::getClustImg()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_clustImg;
 }
 
 void Intact::setClustPts(const std::vector<Point>& points)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_clustPts = points;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getClustPts()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_clustPts;
 }
 
 void Intact::setTtopPcl(const std::vector<float>& points)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_ttopPcl = points;
 }
 
 std::shared_ptr<std::vector<float>> Intact::getTtopPcl()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_ttopPcl;
 }
 void Intact::setTtopImg(const std::vector<uint8_t>& img)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_ttopImg = img;
 }
 
 std::shared_ptr<std::vector<uint8_t>> Intact::getTtopImg()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     return sptr_ttopImg;
 }
 
 void Intact::setTtopPts(const std::vector<Point>& points)
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_updateMutex);
     *sptr_ttopPts = points;
 }
 
@@ -321,97 +321,97 @@ void Intact::setTtopPts(const std::vector<Point>& points)
 //
 void Intact::raiseSegmentedFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_isSegmented = true;
 }
 
 void Intact::raiseChromakeyedFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_isChromakeyed = true;
 }
 
 void Intact::raiseClusteredFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_isClustered = true;
 }
 
 void Intact::raiseEpsilonFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_isEpsilonComputed = true;
 }
 
 void Intact::raiseRunFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_run = true;
 }
 
 void Intact::raiseStopFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_stop = true;
 }
 
 bool Intact::isRun()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_run;
 }
 
 bool Intact::isStop()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_stop;
 }
 
 void Intact::raiseKinectReadyFlag()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_isKinectReady = true;
 }
 
 bool Intact::isChromakeyed()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_isChromakeyed;
 }
 
 bool Intact::isKinectReady()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_isKinectReady;
 }
 
 bool Intact::isSegmented()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_isSegmented;
 }
 
 bool Intact::isClustered()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_isClustered;
 }
 
 // bool Intact::isCalibrated()
 // {
-//     std::lock_guard<std::mutex> lck(m_mutex);
+//     std::lock_guard<std::mutex> lck(m_flagMutex);
 //     return *sptr_isCalibrated;
 // }
 //
 // void Intact::raiseCalibratedFlag()
 // {
-//     std::lock_guard<std::mutex> lck(m_mutex);
+//     std::lock_guard<std::mutex> lck(m_flagMutex);
 //     *sptr_isCalibrated = true;
 // }
 
 void Intact::stop()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_run = false;
 }
 
