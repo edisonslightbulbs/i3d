@@ -9,7 +9,6 @@
 #include "dbscan.h"
 #include "intact.h"
 #include "kinect.h"
-#include "object.h"
 #include "region.h"
 #include "timer.h"
 #include "viewer.h"
@@ -535,30 +534,23 @@ void Intact::cluster(
             std::vector<std::vector<Point>> clusters
                 = dbscan::cluster(*sptr_intact->getSegPts(), E, N);
 
-            /** convert clusters into objects */
-            std::vector<Object> objects;
-            for (auto& cluster : clusters) {
-                Object object(cluster);
-                objects.emplace_back(object);
-            }
-
             /** points -> pcl format for rendering */
-            std::vector<Point> tabletop = objects.front().m_points;
+            std::vector<Point> tabletop = clusters.front();
             pclFmt object = cast::toClusteredPcl(tabletop);
 
-            std::vector<Point> allClusters = objects.back().m_points;
+            std::vector<Point> allClusters = clusters.back();
             pclFmt densityClusters = cast::toClusteredPcl(allClusters);
 
             std::pair<Point, Point> boundary
-                = region::queryBoundary(objects.front().m_points);
+                = region::queryBoundary(clusters.front());
 
             /** update shared density clusters and tabletop cluster */
             sptr_intact->setClustPcl(densityClusters.first);
             sptr_intact->setClustImg(densityClusters.second);
-            sptr_intact->setClustPts(objects.back().m_points);
+            sptr_intact->setClustPts(clusters.back());
             sptr_intact->setTtopPcl(object.first);
             sptr_intact->setTtopImg(object.second);
-            sptr_intact->setTtopPts(objects.front().m_points);
+            sptr_intact->setTtopPts(clusters.front());
             sptr_intact->setTtpBoundary(boundary);
 
             /** update flow-control semaphore */
