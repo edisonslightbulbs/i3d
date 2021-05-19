@@ -60,25 +60,25 @@ int Intact::getDepthImgHeight()
 void Intact::setSegBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    m_segmentBoundary = boundary;
+    m_segBoundary = boundary;
 }
 
-std::pair<Point, Point> Intact::getSegmentBoundary()
+std::pair<Point, Point> Intact::getSegBoundary()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_segmentBoundary;
+    return m_segBoundary;
 }
 
 void Intact::setTtpBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    m_tabletopBoundary = boundary;
+    m_ttopBoundary = boundary;
 }
 
-std::pair<Point, Point> Intact::getTabletopBoundary()
+std::pair<Point, Point> Intact::getTtopBoundary()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_tabletopBoundary;
+    return m_ttopBoundary;
 }
 
 void Intact::setSegPclBuf(
@@ -109,18 +109,18 @@ std::shared_ptr<uint8_t*> Intact::getSegImgBuf()
     return sptr_segImgBuf;
 }
 
-void Intact::setTtpImgBuf(
+void Intact::setTtopImgBuf(
     uint8_t* ptr_ttpImgBuf, uint8_t* ptr_imgBuf, const int& imgSize)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     std::memcpy(ptr_ttpImgBuf, ptr_imgBuf, sizeof(uint8_t) * imgSize);
-    sptr_ttpImgBuf = std::make_shared<uint8_t*>(ptr_ttpImgBuf);
+    sptr_ttopImgBuf = std::make_shared<uint8_t*>(ptr_ttpImgBuf);
 }
 
-std::shared_ptr<uint8_t*> Intact::getTtpImgBuf()
+std::shared_ptr<uint8_t*> Intact::getTtopImgBuf()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_ttpImgBuf;
+    return sptr_ttopImgBuf;
 }
 
 void Intact::setRawPcl(const std::vector<float>& pcl)
@@ -171,22 +171,22 @@ void Intact::setSegFrame(cv::Mat& imgData) // todo check me please
     sptr_segFrame = std::make_shared<cv::Mat>(imgData);
 }
 
-void Intact::setTtpFrame(cv::Mat& imgData)
+void Intact::setTtopFrame(cv::Mat& imgData)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    sptr_ttpFrame = std::make_shared<cv::Mat>(imgData);
+    sptr_ttopFrame = std::make_shared<cv::Mat>(imgData);
 }
 
-std::shared_ptr<cv::Mat> Intact::getTtpFrame()
+std::shared_ptr<cv::Mat> Intact::getTtopFrame()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_ttpFrame;
+    return sptr_ttopFrame;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getTtpPoints()
+std::shared_ptr<std::vector<Point>> Intact::getTtopPoints()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_ttpPts;
+    return sptr_ttopPts;
 }
 
 std::shared_ptr<std::vector<Point>> Intact::getSegPts()
@@ -213,69 +213,69 @@ void Intact::setSegPts(const std::vector<Point>& points)
     *sptr_segPts = points;
 }
 
-void Intact::setCluPcl(const std::vector<float>& points)
+void Intact::setClustPcl(const std::vector<float>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_cluPcl = points;
+    *sptr_clustPcl = points;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getCluPcl()
+std::shared_ptr<std::vector<float>> Intact::getClustPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_cluPcl;
+    return sptr_clustPcl;
 }
 
-void Intact::setCluImg(const std::vector<uint8_t>& img)
+void Intact::setClustImg(const std::vector<uint8_t>& img)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_cluImg = img;
+    *sptr_clustImg = img;
 }
 
-std::shared_ptr<std::vector<uint8_t>> Intact::getCluImg()
+std::shared_ptr<std::vector<uint8_t>> Intact::getClustImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_cluImg;
+    return sptr_clustImg;
 }
 
-void Intact::setCluPts(const std::vector<Point>& points)
+void Intact::setClustPts(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_cluPts = points;
+    *sptr_clustPts = points;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getCluPts()
+std::shared_ptr<std::vector<Point>> Intact::getClustPts()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_cluPts;
+    return sptr_clustPts;
 }
 
-void Intact::setTtpPcl(const std::vector<float>& points)
+void Intact::setTtopPcl(const std::vector<float>& points)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_ttpPcl = points;
+    *sptr_ttopPcl = points;
 }
 
-std::shared_ptr<std::vector<float>> Intact::getTtpPcl()
+std::shared_ptr<std::vector<float>> Intact::getTtopPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_ttpPcl;
+    return sptr_ttopPcl;
 }
-void Intact::setTtpImg(const std::vector<uint8_t>& img)
+void Intact::setTtopImg(const std::vector<uint8_t>& img)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_ttpImg = img;
-}
-
-std::shared_ptr<std::vector<uint8_t>> Intact::getTtpImg()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return sptr_ttpImg;
+    *sptr_ttopImg = img;
 }
 
-void Intact::setTtpPts(const std::vector<Point>& points)
+std::shared_ptr<std::vector<uint8_t>> Intact::getTtopImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_ttpPts = points;
+    return sptr_ttopImg;
+}
+
+void Intact::setTtopPts(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    *sptr_ttopPts = points;
 }
 
 // thread-safe semaphores
@@ -283,7 +283,7 @@ void Intact::setTtpPts(const std::vector<Point>& points)
 void Intact::raiseSegmentedFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_isContextSegmented = true;
+    *sptr_isSegmented = true;
 }
 
 void Intact::raiseChromakeyedFlag()
@@ -295,7 +295,7 @@ void Intact::raiseChromakeyedFlag()
 void Intact::raiseClusteredFlag()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_isContextClustered = true;
+    *sptr_isClustered = true;
 }
 
 void Intact::raiseEpsilonFlag()
@@ -349,13 +349,13 @@ bool Intact::isKinectReady()
 bool Intact::isSegmented()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return *sptr_isContextSegmented;
+    return *sptr_isSegmented;
 }
 
 bool Intact::isClustered()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return *sptr_isContextClustered;
+    return *sptr_isClustered;
 }
 
 // bool Intact::isCalibrated()
@@ -514,19 +514,19 @@ void Intact::cluster(
                 = region::queryBoundary(objects.front().m_points);
 
             /** update shared density clusters and tabletop cluster */
-            sptr_intact->setCluPcl(densityClusters.first);
-            sptr_intact->setCluImg(densityClusters.second);
-            sptr_intact->setCluPts(objects.back().m_points);
-            sptr_intact->setTtpPcl(object.first);
-            sptr_intact->setTtpImg(object.second);
-            sptr_intact->setTtpPts(objects.front().m_points);
+            sptr_intact->setClustPcl(densityClusters.first);
+            sptr_intact->setClustImg(densityClusters.second);
+            sptr_intact->setClustPts(objects.back().m_points);
+            sptr_intact->setTtopPcl(object.first);
+            sptr_intact->setTtopImg(object.second);
+            sptr_intact->setTtopPts(objects.front().m_points);
             sptr_intact->setTtpBoundary(boundary);
 
             /** update flow-control semaphore */
             if (init) {
                 init = false;
                 WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
-                    *sptr_intact->getCluPts()); /*NOLINT*/
+                    *sptr_intact->getClustPts()); /*NOLINT*/
                 sptr_intact->raiseClusteredFlag();
             }
         }
