@@ -1,29 +1,27 @@
 #include <chrono>
 #include <k4a/k4a.hpp>
-#include <knn.h>
 #include <opencv2/core.hpp>
 #include <searcher.h>
 #include <thread>
 #include <utility>
 
-#include "calibration.h"
 #include "cast.h"
 #include "dbscan.h"
 #include "intact.h"
-#include "io.h"
 #include "kinect.h"
-#include "knn.h"
-#include "logger.h"
 #include "object.h"
-#include "ply.h"
 #include "region.h"
-#include "searcher.h"
 #include "timer.h"
 #include "viewer.h"
 #include "yolov5.h"
+//#include "io.h"
+//#include "searcher.h"
+//#include "helpers.hpp"
+//#include "calibration.h"
 
 #define LOG_TRACE 0
 #if LOG_TRACE == 1
+#include "logger.h"
 #define log(string) LOG(INFO) << string
 #else
 #define log
@@ -59,7 +57,7 @@ int Intact::getDepthImgHeight()
     return m_depthHeight;
 }
 
-void Intact::setSegmentBoundary(std::pair<Point, Point>& boundary)
+void Intact::setSegBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     m_segmentBoundary = boundary;
@@ -71,7 +69,7 @@ std::pair<Point, Point> Intact::getSegmentBoundary()
     return m_segmentBoundary;
 }
 
-void Intact::setTabletopBoundary(std::pair<Point, Point>& boundary)
+void Intact::setTtpBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     m_tabletopBoundary = boundary;
@@ -360,23 +358,17 @@ bool Intact::isClustered()
     return *sptr_isContextClustered;
 }
 
-bool Intact::isEpsilonComputed()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return *sptr_isEpsilonComputed;
-}
-
-bool Intact::isCalibrated()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return *sptr_isCalibrated;
-}
-
-void Intact::raiseCalibratedFlag()
-{
-    std::lock_guard<std::mutex> lck(m_mutex);
-    *sptr_isCalibrated = true;
-}
+// bool Intact::isCalibrated()
+// {
+//     std::lock_guard<std::mutex> lck(m_mutex);
+//     return *sptr_isCalibrated;
+// }
+//
+// void Intact::raiseCalibratedFlag()
+// {
+//     std::lock_guard<std::mutex> lck(m_mutex);
+//     *sptr_isCalibrated = true;
+// }
 
 void Intact::stop()
 {
@@ -384,33 +376,48 @@ void Intact::stop()
     *sptr_run = false;
 }
 
-#define SEGMENT 1
-void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
-{
-#if SEGMENT == 1
-    bool init = true;
-    while (!sptr_intact->isKinectReady()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+#define WAIT_UNTIL_KINECT_READY                                                \
+    while (!sptr_intact->isKinectReady()) {                                    \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
+#define WAIT_UNTIL_SEGMENTATION_DONE                                           \
+    while (!sptr_intact->isSegmented()) {                                      \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define WAIT_UNTIL_CLUSTERING_DONE                                             \
+    while (!sptr_intact->isSegmented()) {                                      \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define WAIT_UNTIL_CHROMAKEY_DONE                                              \
+    while (!sptr_intact->isChromakeyed()) {                                    \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
+{
+#define SEGMENT 1
+#if SEGMENT == 1
+
+    bool init = true;
+    WAIT_UNTIL_KINECT_READY; /*NOLINT*/
     while (sptr_intact->isRun()) {
-        /** cast point cloud to Point type definition for processing */
         std::vector<Point> points = cast::toPoint(*sptr_intact->getRawPcl(),
             *sptr_intact->getRawImg(), sptr_intact->getNumPoints());
-        sptr_intact->setRawPts(points); // <- update raw points
-
-        /** segment tabletop interaction context ~15ms */
         std::vector<Point> seg = region::segment(points);
         std::pair<Point, Point> boundary = region::queryBoundary(seg);
-        // todo fix this !!
-        setSegmentBoundary(boundary);
-        sptr_intact->setSegPts(seg); // <- update segment points
 
-        /** update flow control semaphores */
+        /** update shared raw points, tabletop points + boundary */
+        sptr_intact->setRawPts(points);
+        sptr_intact->setSegPts(seg);
+        sptr_intact->setSegBoundary(boundary);
+
+        /** update flow-control semaphores */
         if (init) {
             init = false;
             sptr_intact->raiseSegmentedFlag();
-            log("-- context segmented"); /*NOLINT*/
         }
     }
 #endif
@@ -418,21 +425,16 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 
 void Intact::calibrate(std::shared_ptr<Intact>& sptr_intact)
 {
-    while (!sptr_intact->isKinectReady()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    cv::Mat distanceCoefficients;
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-
-    // todo: move user specification to interface
-    const float arucoSquareEdgeLength = 0.0565f;        // in meters
-    const float calibrationSquareEdgeLength = 0.02500f; // in meters
-    const std::string calibrationFile
-        = "calibration.txt"; // external file for saving calibration
-
 #define CALIBRATE 0
 #if CALIBRATE == 1
-    /** 1st calibrate the camera */
+
+    WAIT_UNTIL_KINECT_READY; /*NOLINT*/
+    cv::Mat distanceCoefficients;
+    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+    const std::string calibrationFile
+        = "calibration.txt"; // calibration save file
+
+    // uncomment #include "calibration.h"
     calibration::startChessBoardCalibration(cameraMatrix, distanceCoefficients);
     // This operation will loop infinitely until calibration
     // images have been taken! take at least 20 images of the
@@ -440,140 +442,87 @@ void Intact::calibrate(std::shared_ptr<Intact>& sptr_intact)
     // chessboard poses equally across all 6 degrees of freedom.
     //
 
-    /** grace window for writing calibration file */
+    /** grace period to successfully write calibration file */
     std::this_thread::sleep_for(std::chrono::seconds(5));
+
 #endif
 
 #define FIND_ARUCO 0
 #if FIND_ARUCO == 1
+
     /** load the calibration */
     calibration::importCalibration(
         "calibration.txt", cameraMatrix, distanceCoefficients);
-
     /** detect aruco markers */
     calibration::findArucoMarkers(cameraMatrix, distanceCoefficients);
-#endif
-    std::cout << "-- calibration done!!" << std::endl;
-}
 
-// Developer option:
-// print knn results
-//
-#define PRINT_KNN 0
-void printKnn(int& i, std::vector<std::pair<Point, float>>& nn)
-{
-#if PRINT_KNN == 1
-    std::cout << "#" << i << ",\t"
-              << "dist: " << std::sqrt(nn[i].second) << ",\t"
-              << "point: (" << nn[i].first.m_xyz[0] << ", "
-              << nn[i].first.m_xyz[1] << ", " << nn[i].first.m_xyz[2] << ")"
-              << std::endl;
 #endif
 }
 
-// Developer option:
-// write knn results to file
-//
-#define WRITE_KNN 0
-void writeKnn(std::vector<float>& knnQuery)
+void Intact::approxEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
 {
-#if WRITE_KNN == 1
-    std::sort(knnQuery.begin(), knnQuery.end(), std::greater<>());
-    const std::string file = io::pwd() + "/knn.csv";
-    std::cout << "writing the knn (k=4) of every point to: ";
-    std::cout << file << std::endl;
-    io::write(knnQuery, file);
-#endif
-}
+#define APPROXIMATE_EPSILON 0
+#if APPROXIMATE_EPSILON
 
-#define COMPUTE_EPSILON 1
-void Intact::estimateEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
-{
-#if COMPUTE_EPSILON
-    /** wait for segmented context */
-    while (!sptr_intact->isSegmented()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
-    }
-
-    log("-- evaluating k nearest neighbours"); /*NOLINT*/
-    std::vector<Point> points = *sptr_intact->getSegPts();
-
-    const int testVal = 3;
-    // testVal used for arbitrary test for release, use
-    // points.size()) (computationally expensive task)
+    WAIT_UNTIL_SEGMENTATION_DONE; /*NOLINT*/
+    // ATM, dynamic epsilon estimation is unstable.
+    // It must be done manually per specific projector-camera setup.
     //
-
-    /** evaluate k=4th nearest neighbours for every point */
-    std::vector<float> knnQuery;
-    for (int i = 0; i < testVal; i++) {
-        int indexOfQueryPoint = i;
-        std::vector<std::pair<Point, float>> nn
-            = knn::compute(points, K, indexOfQueryPoint);
-        knnQuery.push_back(std::sqrt(nn[i].second));
-        printKnn(i, nn);
-    }
-    writeKnn(knnQuery);
+    std::vector<Point> points = *sptr_intact->getSegPts();
     sptr_intact->raiseEpsilonFlag();
+
 #endif
 }
 
-// Developer option:
-// write segmented context to ply file
-//
+void Intact::cluster(
+    const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
+{
 #define WRITE_PLY_FILE 0
 #if WRITE_PLY_FILE == 1
+#include "ply.h"
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points) ply::write(points)
 #else
 #define WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(points)
 #endif
 
 #define CLUSTER 1
-void Intact::cluster(
-    const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact)
-{
 #if CLUSTER
     {
-        /** wait for epsilon value */
-        while (!sptr_intact->isEpsilonComputed()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(3));
-        }
-
+        WAIT_UNTIL_SEGMENTATION_DONE; /*NOLINT*/
         bool init = true;
-        /** n.b., clustering loop takes ~130ms per iteration */
-        while (sptr_intact->isRun()) {
 
-            /** cluster segmented context ~130ms/loop iteration */
+        typedef std::pair<std::vector<float>, std::vector<uint8_t>> pclFmt;
+        while (sptr_intact->isRun()) {
             std::vector<std::vector<Point>> clusters
                 = dbscan::cluster(*sptr_intact->getSegPts(), E, N);
 
-            /** create object list using the density clusters */
+            /** convert clusters into objects */
             std::vector<Object> objects;
             for (auto& cluster : clusters) {
                 Object object(cluster);
                 objects.emplace_back(object);
             }
 
-            /** cast region points to pcl format  for rendering */
-            std::pair<std::vector<float>, std::vector<uint8_t>>
-                spatialDensityClusters = cast::toClusteredPcl(
-                    objects.back().m_points); // objects.back() = all clusters
-            sptr_intact->setCluPcl(spatialDensityClusters.first);
-            sptr_intact->setCluImg(spatialDensityClusters.second);
-            sptr_intact->setCluPts(objects.back().m_points);
+            /** points -> pcl format for rendering */
+            std::vector<Point> tabletop = objects.front().m_points;
+            pclFmt object = cast::toClusteredPcl(tabletop);
 
-            /** cast object points to pcl format  for rendering */
-            std::pair<std::vector<float>, std::vector<uint8_t>> object
-                = cast::toClusteredPcl(
-                    objects.front().m_points); // objects.front() = tabletop
-            sptr_intact->setTtpPcl(object.first);
-            sptr_intact->setTtpImg(object.second);
-            sptr_intact->setTtpPts(objects.front().m_points);
+            std::vector<Point> allClusters = objects.back().m_points;
+            pclFmt densityClusters = cast::toClusteredPcl(allClusters);
 
             std::pair<Point, Point> boundary
                 = region::queryBoundary(objects.front().m_points);
-            sptr_intact->setTabletopBoundary(boundary);
 
-            /** sequence cross thread semaphore */
+            /** update shared density clusters and tabletop cluster */
+            sptr_intact->setCluPcl(densityClusters.first);
+            sptr_intact->setCluImg(densityClusters.second);
+            sptr_intact->setCluPts(objects.back().m_points);
+            sptr_intact->setTtpPcl(object.first);
+            sptr_intact->setTtpImg(object.second);
+            sptr_intact->setTtpPts(objects.front().m_points);
+            sptr_intact->setTtpBoundary(boundary);
+
+            /** update flow-control semaphore */
             if (init) {
                 init = false;
                 WRITE_CLUSTERED_SEGMENT_TO_PLY_FILE(
@@ -582,49 +531,26 @@ void Intact::cluster(
             }
         }
     }
+
 #endif
 }
 
-#define RENDER 0
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
+#define RENDER 1
 #if RENDER == 1
-    while (!sptr_intact->isKinectReady()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
-    }
+
+    WAIT_UNTIL_KINECT_READY; /*NOLINT*/
     viewer::draw(sptr_intact);
+
 #endif
 }
 
-void chromaPixelData(const int& index, uint8_t* ptr_data)
-{
-    // 65,171,93 -> green
-    ptr_data[4 * index + 0] = 93;  // blue
-    ptr_data[4 * index + 1] = 171; // green
-    ptr_data[4 * index + 2] = 65;  // red
-    ptr_data[4 * index + 3] = 0;   // alpha
-}
-
-bool outsideBoundary(
-    const int& index, const short* ptr_data, const Point& min, const Point& max)
-{
-    if (max.m_xyz[2] == __FLT_MAX__ || min.m_xyz[2] == __FLT_MIN__) {
-        return true;
-    }
-    if ((float)ptr_data[3 * index + 0] > max.m_xyz[0]
-        || (float)ptr_data[3 * index + 0] < min.m_xyz[0]
-        || (float)ptr_data[3 * index + 1] > max.m_xyz[1]
-        || (float)ptr_data[3 * index + 1] < min.m_xyz[1]
-        || (float)ptr_data[3 * index + 2] > max.m_xyz[2]
-        || (float)ptr_data[3 * index + 2] < min.m_xyz[2]) {
-        return true;
-    }
-    return false;
-}
-
-#define CHROMAKEY 1
 void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
 {
+#define CHROMAKEY 0
+#if CHROMAKEY == 1
+
     int imgSize = sptr_intact->getNumPoints() * 4; // r, g, b, a
     int pclSize = sptr_intact->getNumPoints() * 3; // x, y, z
 
@@ -635,13 +561,8 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
     // auto* ptr_TabletopPclData = (int16_t*)malloc(sizeof(int16_t*) * pclSize);
 
     bool init = true;
-    while (!sptr_intact->isClustered()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
-    }
+    WAIT_UNTIL_CLUSTERING_DONE; /*NOLINT*/
 
-    // todo: create helpers.hpp
-
-#if CHROMAKEY == 1
     while (sptr_intact->isRun()) {
         std::memcpy(ptr_pclData, *sptr_intact->getSegPclBuf(),
             sizeof(int16_t) * pclSize);
@@ -659,12 +580,12 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
                 continue;
             }
 
-            if (outsideBoundary(i, ptr_pclData,
+            if (!vacant(i, ptr_pclData,
                     sptr_intact->getTabletopBoundary().first,
                     sptr_intact->getTabletopBoundary().second)) {
                 continue;
             }
-            chromaPixelData(i, ptr_imgData);
+            chromaPixel(i, ptr_imgData);
 
             // float x = ptr_pclData[3 * i + 0];
             // float y = ptr_pclData[3 * i + 1];
@@ -696,19 +617,18 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
             init = false;
             sptr_intact->raiseChromakeyedFlag();
         }
-        std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
+
 #endif
 }
 
-#define DETECT_OBJECTS 1
 void Intact::detectObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
+#define DETECT_OBJECTS 0
 #if DETECT_OBJECTS == 1
-    while (!sptr_intact->isChromakeyed()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
-    }
+
+    WAIT_UNTIL_CHROMAKEY_DONE; /*NOLINT*/
     while (sptr_intact->isRun()) {
         clock_t start = clock();
 
@@ -764,12 +684,11 @@ void Intact::detectObjects(std::vector<std::string>& classnames,
             cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1,
             cv::Scalar(0, 255, 0), 2);
         cv::imshow("", frame);
-#endif
-
         if (cv::waitKey(1) == 27) {
             sptr_intact->raiseStopFlag();
         }
-        std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
+#endif
+
 #endif
 }
