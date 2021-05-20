@@ -13,9 +13,9 @@
 #include "timer.h"
 #include "viewer.h"
 #include "yolov5.h"
+#include "utils.hpp"
 //#include "io.h"
 //#include "searcher.h"
-//#include "helpers.hpp"
 //#include "calibration.h"
 
 #define LOG_TRACE 0
@@ -203,16 +203,22 @@ std::shared_ptr<std::vector<uint8_t>> Intact::getSegImg()
     return sptr_segImg;
 }
 
-void Intact::setSegFrame(cv::Mat& imgData) // todo check me please
+void Intact::setSegFrame(cv::Mat& segFrame) // todo check me please
 {
     std::lock_guard<std::mutex> lck(m_bufMutex);
-    sptr_segFrame = std::make_shared<cv::Mat>(imgData);
+    sptr_segFrame = std::make_shared<cv::Mat>(segFrame);
 }
 
-void Intact::setTtopFrame(cv::Mat& imgData)
+std::shared_ptr<cv::Mat> Intact::getSegFrame()
 {
     std::lock_guard<std::mutex> lck(m_bufMutex);
-    sptr_ttopFrame = std::make_shared<cv::Mat>(imgData);
+    return sptr_segFrame;
+}
+
+void Intact::setTtopFrame(cv::Mat& ttopFrame)
+{
+    std::lock_guard<std::mutex> lck(m_bufMutex);
+    sptr_ttopFrame = std::make_shared<cv::Mat>(ttopFrame);
 }
 
 std::shared_ptr<cv::Mat> Intact::getTtopFrame()
@@ -568,7 +574,7 @@ void Intact::cluster(
 
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
-#define RENDER 1
+#define RENDER 0
 #if RENDER == 1
 
     WAIT_UNTIL_KINECT_READY; /*NOLINT*/
@@ -579,69 +585,51 @@ void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 
 void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
 {
-#define CHROMAKEY 0
+#define CHROMAKEY 1
 #if CHROMAKEY == 1
 
     int imgSize = sptr_intact->getNumPoints() * 4; // r, g, b, a
     int pclSize = sptr_intact->getNumPoints() * 3; // x, y, z
 
-    auto* ptr_imgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
-    auto* ptr_TabletopImgData = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+    auto* ptr_pclBuf = (int16_t*)malloc(sizeof(int16_t*) * pclSize);
+    auto* ptr_imgBuf = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
+    auto* ptr_TtopImgBuf = (uint8_t*)malloc(sizeof(uint8_t) * imgSize);
 
-    auto* ptr_pclData = (int16_t*)malloc(sizeof(int16_t*) * pclSize);
-    // auto* ptr_TabletopPclData = (int16_t*)malloc(sizeof(int16_t*) * pclSize);
-
-    bool init = true;
     WAIT_UNTIL_CLUSTERING_DONE; /*NOLINT*/
 
+    bool init = true;
     while (sptr_intact->isRun()) {
-        std::memcpy(ptr_pclData, *sptr_intact->getSegPclBuf(),
+        std::memcpy(ptr_pclBuf, *sptr_intact->getSegPclBuf(),
             sizeof(int16_t) * pclSize);
-        std::memcpy(ptr_imgData, *sptr_intact->getSegImgBuf(),
+        std::memcpy(ptr_imgBuf, *sptr_intact->getSegImgBuf(),
             sizeof(uint8_t) * imgSize);
-
-        // todo:
-        //   1. build pclVec
-        //   2. build imgVec
 
         int numPoints = sptr_intact->getNumPoints();
         for (int i = 0; i < numPoints; i++) {
-            if (ptr_imgData[4 * i + 0] == 0 && ptr_imgData[4 * i + 1] == 0
-                && ptr_imgData[4 * i + 2] == 0 && ptr_imgData[4 * i + 3] == 0) {
+            if (ptr_imgBuf[4 * i + 0] == 0 && ptr_imgBuf[4 * i + 1] == 0
+                && ptr_imgBuf[4 * i + 2] == 0 && ptr_imgBuf[4 * i + 3] == 0) {
                 continue;
             }
-
-            if (!vacant(i, ptr_pclData,
-                    sptr_intact->getTabletopBoundary().first,
-                    sptr_intact->getTabletopBoundary().second)) {
-                continue;
+            float x = ptr_pclBuf[3 * i + 0];
+            float y = ptr_pclBuf[3 * i + 1];
+            float z = ptr_pclBuf[3 * i + 2];
+            Point queryPoint(x, y, z);
+            if (searcher::pointFound(*sptr_intact->getTtopPoints(),
+            queryPoint)){
+                      chromaPixel(i, ptr_imgBuf);
             }
-            chromaPixel(i, ptr_imgData);
-
-            // float x = ptr_pclData[3 * i + 0];
-            // float y = ptr_pclData[3 * i + 1];
-            // float z = ptr_pclData[3 * i + 2];
-            // Point queryPoint(x, y, z);
-            // if (searcher::pointFound(*sptr_intact->getTabletopPoints(),
-            // queryPoint)){
-            //           chromaPixelData(i, ptr_imgData);
-            // }
         }
+        sptr_intact->setTtopImgBuf(ptr_TtopImgBuf, ptr_imgBuf, imgSize);
 
-        // sptr_intact->setTabletopPclData(
-        //     ptr_TabletopPclData, ptr_pclData, pclSize);
+        int height = sptr_intact->getDepthImgHeight(); // todo: fix bug
+        int width = sptr_intact->getDepthImgWidth(); // todo:: fix bug
 
-        sptr_intact->setTtpImgBuf(ptr_TabletopImgData, ptr_imgData, imgSize);
-
-        int height = sptr_intact->getDepthImgHeight();
-        int width = sptr_intact->getDepthImgWidth();
-
-        /** create image for segmented tabletop in cv::Mat format */
+        /** create tabletop frame in cv format */
         cv::Mat frame = cv::Mat(height, width, CV_8UC4,
-            (void*)*sptr_intact->getTtpImgBuf(), cv::Mat::AUTO_STEP)
+            (void*)*sptr_intact->getTtopImgBuf(), cv::Mat::AUTO_STEP)
                             .clone();
 
-        sptr_intact->setTtpFrame(frame);
+        sptr_intact->setTtopFrame(frame);
 
         /** update flow-control semaphore */
         if (init) {
@@ -656,15 +644,15 @@ void Intact::chroma(std::shared_ptr<Intact>& sptr_intact)
 void Intact::detectObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
-#define DETECT_OBJECTS 0
+#define DETECT_OBJECTS 1
 #if DETECT_OBJECTS == 1
 
     WAIT_UNTIL_CHROMAKEY_DONE; /*NOLINT*/
     while (sptr_intact->isRun()) {
         clock_t start = clock();
 
-        // cv::Mat frame = *sptr_intact->getSegmentedImgFrame();
-        cv::Mat frame = *sptr_intact->getTtpFrame();
+         //cv::Mat frame = *sptr_intact->getSegFrame();
+        cv::Mat frame = *sptr_intact->getTtopFrame();
 
         cv::Mat img;
         /** prepare tensor input */
@@ -717,6 +705,7 @@ void Intact::detectObjects(std::vector<std::string>& classnames,
         cv::imshow("", frame);
         if (cv::waitKey(1) == 27) {
             sptr_intact->raiseStopFlag();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
 #endif
