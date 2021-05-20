@@ -162,7 +162,7 @@ public:
     std::shared_ptr<std::vector<uint8_t>> getRawImg();
 
     /** for segmented pcl, image, and points */
-    void setSegFrame(cv::Mat& imgData);
+    void setSegFrame(cv::Mat& segFrame);
     void setSegPts(const std::vector<Point>& points);
     void setSegPcl(const std::vector<float>& seg);
     void setSegImg(const std::vector<uint8_t>& segment);
@@ -172,6 +172,7 @@ public:
         int16_t* ptr_segPclBuf, int16_t* ptr_pclBuf, const int& pclSize);
     std::shared_ptr<int16_t*> getSegPclBuf();
     std::shared_ptr<uint8_t*> getSegImgBuf();
+    std::shared_ptr<cv::Mat> getSegFrame();
     std::shared_ptr<std::vector<Point>> getSegPts();
     std::shared_ptr<std::vector<float>> getSegPcl();
     std::shared_ptr<std::vector<uint8_t>> getSegImg();
@@ -187,7 +188,7 @@ public:
     /** for tabletop pcl, image, and points */
     void setTtopImgBuf(
         uint8_t* ptr_ttpImgBuf, uint8_t* ptr_imgBuf, const int& imgSize);
-    void setTtopFrame(cv::Mat& imgData);
+    void setTtopFrame(cv::Mat& ttopFrame);
     void setTtopPcl(const std::vector<float>& points);
     void setTtopImg(const std::vector<uint8_t>& img);
     void setTtopPts(const std::vector<Point>& points);
