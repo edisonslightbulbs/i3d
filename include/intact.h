@@ -22,6 +22,7 @@ private:
     // hierarchical mutual exclusion
     std::mutex m_sensorMutex;
     std::mutex m_intactMutex;
+    std::mutex m_bkgdMutex;
     std::mutex m_semaphoreMutex;
 
     // shared sensor resources
@@ -37,16 +38,18 @@ private:
     std::shared_ptr<int16_t*> sptr_intactPcl = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_intactPoints = nullptr;
 
+    std::shared_ptr<int16_t*> sptr_chromaBkgdPcl = nullptr;
+    std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_GL = nullptr;
+    std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_CV = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_chromaBkgdPoints = nullptr;
+
     // semaphores for asynchronous threads
     std::shared_ptr<bool> sptr_run;
     std::shared_ptr<bool> sptr_stop;
     std::shared_ptr<bool> sptr_isClustered;
     std::shared_ptr<bool> sptr_isSegmented;
-    std::shared_ptr<bool> sptr_isCalibrated;
     std::shared_ptr<bool> sptr_isKinectReady;
     std::shared_ptr<bool> sptr_isIntactReady;
-    std::shared_ptr<bool> sptr_isChromakeyed;
-    std::shared_ptr<bool> sptr_isEpsilonComputed;
 
 public:
     /**
@@ -91,28 +94,6 @@ public:
         std::shared_ptr<Intact>& sptr_intact);
 
     /**
-     * approxEpsilon
-     *   Estimates size of epsilon neighbourhood using knn.
-     *
-     * @param K
-     *   K parameter.
-     *
-     * @param sptr_intact
-     *   Instance of API call.
-     */
-    static void approxEpsilon(
-        const int& K, std::shared_ptr<Intact>& sptr_intact);
-
-    /**
-     * calibrate
-     *   Calibrates projector camera system.
-     *
-     * @param sptr_intact
-     *   Instance of API call.
-     */
-    static void calibrate(std::shared_ptr<Intact>& sptr_intact);
-
-    /**
      * showObjects
      *   Detects objects in a given cv::Mat frame.
      *
@@ -134,20 +115,15 @@ public:
     bool isStop();
     bool isSegmented();
     bool isClustered();
-    // bool isCalibrated();
-    bool isChromakeyed();
     bool isKinectReady();
     bool isIntactReady();
 
     void raiseRunFlag();
     void raiseStopFlag();
-    void raiseEpsilonFlag();
     void raiseSegmentedFlag();
     void raiseClusteredFlag();
-    // void raiseCalibratedFlag();
     void raiseKinectReadyFlag();
     void raiseIntactReadyFlag();
-    void raiseChromakeyedFlag();
 
     //////////////////////////////////////////////////////////////////////////
     //                     depth image width and height
@@ -164,7 +140,7 @@ public:
     std::shared_ptr<int16_t*> getSensorPcl();
 
     void setSensorImg_GL(uint8_t* ptr_img);
-    std::shared_ptr<uint8_t*> getSensorImg_GL();
+    __attribute__((unused)) std::shared_ptr<uint8_t*> getSensorImg_GL();
 
     void setSensorPts(const std::vector<Point>& points);
     std::shared_ptr<std::vector<Point>> getSensorPts();
@@ -189,5 +165,20 @@ public:
 
     void setIntactBoundary(std::pair<Point, Point>& boundary);
     std::pair<Point, Point> getIntactBoundary();
+
+    ///////////////////////////////////////////////////////////////////////////////
+    //                           chroma background
+    ///////////////////////////////////////////////////////////////////////////////
+    void setChromaBkgdPcl(int16_t* ptr_pcl);
+    std::shared_ptr<int16_t*> getChromaBkgdPcl();
+
+    void setChromaBkgdImg_GL(uint8_t* ptr_img);
+    std::shared_ptr<uint8_t*> getChromaBkgdImg_GL();
+
+    void setChromaBkgdImg_CV(uint8_t* ptr_img);
+    std::shared_ptr<uint8_t*> getChromaBkgdImg_CV();
+
+    void setChromaBkgdPts(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getChromaBkgdPts();
 };
 #endif /* INTACT_H */
