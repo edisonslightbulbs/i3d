@@ -9,9 +9,8 @@
 #include "intact.h"
 #include "kinect.h"
 #include "macros.hpp"
-#include "ply.h"
 #include "region.h"
-#include "timer.h"
+#include "utils.hpp"
 #include "viewer.h"
 #include "yolov5.h"
 
@@ -20,25 +19,20 @@ Intact::Intact(int& numPts)
     , m_pclsize(numPts * 3)
     , m_imgsize(numPts * 4)
 {
-    // initialize intact's boundary
     Point intactMaxBound(SHRT_MAX, SHRT_MAX, SHRT_MAX);
     Point intactMinBound(SHRT_MIN, SHRT_MIN, SHRT_MIN);
     m_intactBoundary = { intactMaxBound, intactMinBound };
 
-    // initialize semaphores
     sptr_run = std::make_shared<bool>(false);
     sptr_stop = std::make_shared<bool>(false);
     sptr_isClustered = std::make_shared<bool>(false);
     sptr_isSegmented = std::make_shared<bool>(false);
-    sptr_isCalibrated = std::make_shared<bool>(false);
     sptr_isKinectReady = std::make_shared<bool>(false);
     sptr_isIntactReady = std::make_shared<bool>(false);
-    sptr_isChromakeyed = std::make_shared<bool>(false);
-    sptr_isEpsilonComputed = std::make_shared<bool>(false);
 
-    // initialize resources
     sptr_points = std::make_shared<std::vector<Point>>(m_pclsize);
     sptr_intactPoints = std::make_shared<std::vector<Point>>(m_pclsize);
+    sptr_chromaBkgdPoints = std::make_shared<std::vector<Point>>(m_pclsize);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,6 +103,12 @@ bool Intact::isSegmented()
 {
     std::lock_guard<std::mutex> lck(m_semaphoreMutex);
     return *sptr_isSegmented;
+}
+
+bool Intact::isClustered()
+{
+    std::lock_guard<std::mutex> lck(m_semaphoreMutex);
+    return *sptr_isClustered;
 }
 
 void Intact::stop()
@@ -195,7 +195,7 @@ void Intact::setSensorImg_GL(uint8_t* ptr_img)
     sptr_sensorImg_GL = std::make_shared<uint8_t*>(ptr_img);
 }
 
-std::shared_ptr<uint8_t*> Intact::getSensorImg_GL()
+__attribute__((unused)) std::shared_ptr<uint8_t*> Intact::getSensorImg_GL()
 {
     std::lock_guard<std::mutex> lck(m_sensorMutex);
     return sptr_sensorImg_GL;
@@ -266,12 +266,64 @@ std::shared_ptr<uint8_t*> Intact::getIntactImg_CV()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//                           chroma background
+///////////////////////////////////////////////////////////////////////////////
+
+void Intact::setChromaBkgdPts(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    *sptr_chromaBkgdPoints = points;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getChromaBkgdPts()
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    return sptr_chromaBkgdPoints;
+}
+
+void Intact::setChromaBkgdPcl(int16_t* ptr_pcl)
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    sptr_chromaBkgdPcl = std::make_shared<int16_t*>(ptr_pcl);
+}
+
+std::shared_ptr<int16_t*> Intact::getChromaBkgdPcl()
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    return sptr_chromaBkgdPcl;
+}
+
+void Intact::setChromaBkgdImg_GL(uint8_t* ptr_img)
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    sptr_chromaBkgdImg_GL = std::make_shared<uint8_t*>(ptr_img);
+}
+
+std::shared_ptr<uint8_t*> Intact::getChromaBkgdImg_GL()
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    return sptr_chromaBkgdImg_GL;
+}
+
+void Intact::setChromaBkgdImg_CV(uint8_t* ptr_img)
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    sptr_chromaBkgdImg_CV = std::make_shared<uint8_t*>(ptr_img);
+}
+
+std::shared_ptr<uint8_t*> Intact::getChromaBkgdImg_CV()
+{
+    std::lock_guard<std::mutex> lck(m_bkgdMutex);
+    return sptr_chromaBkgdImg_CV;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 //                          pipeline operations
 ///////////////////////////////////////////////////////////////////////////////
 
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
-    WHILE_INTACT_READY
+    WHILE_CLUSTERS_READY
     viewer::draw(sptr_intact);
 }
 
@@ -283,6 +335,7 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
         std::vector<Point> points = *sptr_intact->getSensorPts();
         std::vector<Point> seg = region::segment(points);
         std::pair<Point, Point> boundary = region::queryBoundary(seg);
+        sptr_intact->setIntactPts(seg);
         sptr_intact->setIntactBoundary(boundary);
         SEGMENT_READY
     }
@@ -294,8 +347,57 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
     WHILE_INTACT_READY
     START
     while (sptr_intact->isRun()) {
-        std::vector<std::vector<Point>> clusters
-            = dbscan::cluster(*sptr_intact->getSensorPts(), epsilon, minPoints);
+
+        Timer timer;
+        std::vector<Point> points = *sptr_intact->getIntactPts();
+
+        // dbscan using kd-tree: returns clustered indexes
+        auto clusters = dbscan::cluster(points, epsilon, minPoints);
+
+        // sort clusters in descending order
+        std::sort(clusters.begin(), clusters.end(),
+            [](const std::vector<unsigned long>& a,
+                const std::vector<unsigned long>& b) {
+                return a.size() > b.size();
+            });
+
+        // for stitching images from clusters
+        const uint32_t pclsize = points.size() * 3;
+        const uint32_t imgsize = points.size() * 4;
+
+        int16_t pclBuf[pclsize];
+        uint8_t imgBuf_GL[pclsize];
+        uint8_t imgBuf_CV[imgsize];
+
+        // define chromakey color for tabletop surface
+        uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
+        uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
+
+        // for background points
+        std::vector<Point> bkgd;
+
+        // use clustered indexes to label point cloud
+        int clusterIndex = 0;
+        for (const auto& cluster : clusters) {
+            // if (cluster.size() < 25) {
+            //     continue;
+            // }
+            for (const auto& index : cluster) {
+
+                // chromakey pixels in cluster 0, i.e., the tabletop cluster
+                if (clusterIndex == 0) {
+                    points[index].setPixel_GL(rgb);
+                    points[index].setPixel_CV(bgra);
+                    bkgd.emplace_back(points[index]);
+                }
+                stitch(index, points[index], pclBuf, imgBuf_GL, imgBuf_CV);
+            }
+            clusterIndex++;
+        }
+        sptr_intact->setChromaBkgdPts(points);
+        sptr_intact->setChromaBkgdPcl(pclBuf);
+        sptr_intact->setChromaBkgdImg_GL(imgBuf_GL);
+        sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
         CLUSTERS_READY
     }
 }
@@ -303,7 +405,7 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
 void Intact::showObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
-    WHILE_INTACT_READY
+    WHILE_CLUSTERS_READY
     while (sptr_intact->isRun()) {
 
         // start frame rate clock
@@ -371,48 +473,4 @@ void Intact::showObjects(std::vector<std::string>& classnames,
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
-}
-
-void Intact::approxEpsilon(const int& K, std::shared_ptr<Intact>& sptr_intact)
-{
-    WHILE_SEGMENT_READY
-    // Dynamic epsilon estimation currently unstable.
-    // It needs to be done manually per depth-camera setup.
-    //
-}
-
-void Intact::calibrate(std::shared_ptr<Intact>& sptr_intact)
-{
-#define CALIBRATE 0
-#if CALIBRATE == 1
-
-    WAIT_UNTIL_KINECT_READY; /*NOLINT*/
-    cv::Mat distanceCoefficients;
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    const std::string calibrationFile
-        = "calibration.txt"; // calibration save file
-
-    // uncomment #include "calibration.h"
-    calibration::startChessBoardCalibration(cameraMatrix, distanceCoefficients);
-    // This operation will loop infinitely until calibration
-    // images have been taken! take at least 20 images of the
-    // chessboard. A criteria for good calibration images is variable
-    // chessboard poses equally across all 6 degrees of freedom.
-    //
-
-    /** grace period to successfully write calibration file */
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-
-#endif
-
-#define FIND_ARUCO 0
-#if FIND_ARUCO == 1
-
-    /** load the calibration */
-    calibration::importCalibration(
-        "calibration.txt", cameraMatrix, distanceCoefficients);
-    /** detect aruco markers */
-    calibration::findArucoMarkers(cameraMatrix, distanceCoefficients);
-
-#endif
 }
