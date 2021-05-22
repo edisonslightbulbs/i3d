@@ -3,7 +3,6 @@
 
 #include <memory>
 #include <mutex>
-#include <opencv2/opencv.hpp>
 #include <torch/script.h>
 #include <vector>
 
@@ -12,64 +11,52 @@
 
 class Intact {
 
-private:
-    std::mutex m_bufMutex;
-    std::mutex m_updateMutex;
-    std::mutex m_flagMutex;
-
-    int m_numPoints;
+public:
+    int m_numPts;
+    int m_pclsize;
+    int m_imgsize;
     int m_depthWidth {};
     int m_depthHeight {};
 
-    /** for raw pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_rawPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_rawImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_rawPts = nullptr;
+private:
+    // hierarchical mutual exclusion
+    std::mutex m_sensorMutex;
+    std::mutex m_intactMutex;
+    std::mutex m_semaphoreMutex;
 
-    /** for segmented pcl, image, and points */
-    std::shared_ptr<cv::Mat> sptr_segFrame = nullptr;
-    std::shared_ptr<int16_t*> sptr_segPclBuf = nullptr;
-    std::shared_ptr<uint8_t*> sptr_segImgBuf = nullptr;
-    std::shared_ptr<std::vector<float>> sptr_segPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_segImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_segPts = nullptr;
+    // shared sensor resources
+    std::shared_ptr<uint8_t*> sptr_sensorImg_GL = nullptr;
+    std::shared_ptr<uint8_t*> sptr_sensorImg_CV = nullptr;
+    std::shared_ptr<int16_t*> sptr_sensorPcl = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
-    /** for clustered pcl, image, and points */
-    std::shared_ptr<std::vector<float>> sptr_clustPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_clustImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_clustPts = nullptr;
+    // shared api resources
+    std::pair<Point, Point> m_intactBoundary {};
+    std::shared_ptr<uint8_t*> sptr_intactImg_GL = nullptr;
+    std::shared_ptr<uint8_t*> sptr_intactImg_CV = nullptr;
+    std::shared_ptr<int16_t*> sptr_intactPcl = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_intactPoints = nullptr;
 
-    /** for tabletop pcl, image, and points */
-    std::shared_ptr<cv::Mat> sptr_ttopFrame = nullptr;
-    std::shared_ptr<int16_t*> sptr_ttopPclBuf = nullptr;
-    std::shared_ptr<uint8_t*> sptr_ttopImgBuf = nullptr;
-    std::shared_ptr<std::vector<float>> sptr_ttopPcl = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_ttopImg = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_ttopPts = nullptr;
-
-    /** flow-control semaphores */
+    // semaphores for asynchronous threads
     std::shared_ptr<bool> sptr_run;
     std::shared_ptr<bool> sptr_stop;
     std::shared_ptr<bool> sptr_isClustered;
     std::shared_ptr<bool> sptr_isSegmented;
     std::shared_ptr<bool> sptr_isCalibrated;
     std::shared_ptr<bool> sptr_isKinectReady;
+    std::shared_ptr<bool> sptr_isIntactReady;
     std::shared_ptr<bool> sptr_isChromakeyed;
     std::shared_ptr<bool> sptr_isEpsilonComputed;
-
-    /** for segment and cluster boundaries */
-    std::pair<Point, Point> m_segBoundary {};
-    std::pair<Point, Point> m_ttopBoundary {};
 
 public:
     /**
      * Intact
-     *   Constructs instance of API
+     *   Constructs instance of the 3dintact API
      *
-     * @param numPoints
-     *   Max number of point cloud points.
+     * @param numPts
+     *   Max number of point-cloud points.
      */
-    explicit Intact(int& numPoints);
+    explicit Intact(int& numPts);
 
     /**
      * segment
@@ -93,15 +80,15 @@ public:
      * cluster
      *   Clusters segmented context.
      *
-     * @param E
+     * @param epsilon
      *   Epsilon parameter.
-     * @param N
+     * @param minPoints
      *   Number of epsilon-neighbourhood neighbours.
      * @param sptr_intact
      *   Instance of API call.
      */
-    static void cluster(
-        const float& E, const int& N, std::shared_ptr<Intact>& sptr_intact);
+    static void cluster(const float& epsilon, const int& minPoints,
+        std::shared_ptr<Intact>& sptr_intact);
 
     /**
      * approxEpsilon
@@ -126,7 +113,7 @@ public:
     static void calibrate(std::shared_ptr<Intact>& sptr_intact);
 
     /**
-     * detectObjects
+     * showObjects
      *   Detects objects in a given cv::Mat frame.
      *
      * @param classnames
@@ -136,76 +123,12 @@ public:
      * @param sptr_intact
      *   Instance of API call.
      */
-    static void detectObjects(std::vector<std::string>& classnames,
+    static void showObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<Intact>& sptr_intact);
 
-    /**
-     * chroma
-     *   Chroma keys tabletop.
-     *
-     * @param sptr_intact
-     *   Instance of API call.
-     */
-    void chroma(std::shared_ptr<Intact>& sptr_intact);
-
-    /** for segment and cluster boundaries */
-    std::pair<Point, Point> getSegBoundary();
-    std::pair<Point, Point> getTtopBoundary();
-    void setSegBoundary(std::pair<Point, Point>& boundary);
-    void setTtpBoundary(std::pair<Point, Point>& boundary);
-
-    /** for raw pcl, image, and points */
-    void setRawPcl(const std::vector<float>& pcl);
-    void setRawImg(const std::vector<uint8_t>& img);
-    void setRawPts(const std::vector<Point>& points);
-    std::shared_ptr<std::vector<float>> getRawPcl();
-    std::shared_ptr<std::vector<uint8_t>> getRawImg();
-
-    /** for segmented pcl, image, and points */
-    void setSegFrame(cv::Mat& segFrame);
-    void setSegPts(const std::vector<Point>& points);
-    void setSegPcl(const std::vector<float>& seg);
-    void setSegImg(const std::vector<uint8_t>& segment);
-    void setSegImgBuf(
-        uint8_t* ptr_segImgBuf, uint8_t* ptr_imgBuf, const int& imgSize);
-    void setSegPclBuf(
-        int16_t* ptr_segPclBuf, int16_t* ptr_pclBuf, const int& pclSize);
-    std::shared_ptr<int16_t*> getSegPclBuf();
-    std::shared_ptr<uint8_t*> getSegImgBuf();
-    std::shared_ptr<cv::Mat> getSegFrame();
-    std::shared_ptr<std::vector<Point>> getSegPts();
-    std::shared_ptr<std::vector<float>> getSegPcl();
-    std::shared_ptr<std::vector<uint8_t>> getSegImg();
-
-    /** for clustered pcl, image, and points */
-    void setClustPcl(const std::vector<float>& points);
-    void setClustImg(const std::vector<uint8_t>& img);
-    void setClustPts(const std::vector<Point>& points);
-    std::shared_ptr<std::vector<Point>> getClustPts();
-    std::shared_ptr<std::vector<float>> getClustPcl();
-    std::shared_ptr<std::vector<uint8_t>> getClustImg();
-
-    /** for tabletop pcl, image, and points */
-    void setTtopImgBuf(
-        uint8_t* ptr_ttpImgBuf, uint8_t* ptr_imgBuf, const int& imgSize);
-    void setTtopFrame(cv::Mat& ttopFrame);
-    void setTtopPcl(const std::vector<float>& points);
-    void setTtopImg(const std::vector<uint8_t>& img);
-    void setTtopPts(const std::vector<Point>& points);
-    std::shared_ptr<uint8_t*> getTtopImgBuf();
-    std::shared_ptr<cv::Mat> getTtopFrame();
-    std::shared_ptr<std::vector<float>> getTtopPcl();
-    std::shared_ptr<std::vector<uint8_t>> getTtopImg();
-    std::shared_ptr<std::vector<Point>> getTtopPoints();
-
-    /** for image and point cloud size */
-    int getNumPoints();
-    int getDepthImgWidth();
-    int getDepthImgHeight();
-    void setDepthImgHeight(const int& height);
-    void setDepthImgWidth(const int& width);
-
-    /** for asynchronous flow-control semaphores */
+    //////////////////////////////////////////////////////////////////////////
+    //                semaphores for asynchronous threads
+    //////////////////////////////////////////////////////////////////////////
     void stop();
     bool isRun();
     bool isStop();
@@ -214,6 +137,7 @@ public:
     // bool isCalibrated();
     bool isChromakeyed();
     bool isKinectReady();
+    bool isIntactReady();
 
     void raiseRunFlag();
     void raiseStopFlag();
@@ -222,6 +146,48 @@ public:
     void raiseClusteredFlag();
     // void raiseCalibratedFlag();
     void raiseKinectReadyFlag();
+    void raiseIntactReadyFlag();
     void raiseChromakeyedFlag();
+
+    //////////////////////////////////////////////////////////////////////////
+    //                     depth image width and height
+    //////////////////////////////////////////////////////////////////////////
+    int getDepthImgWidth();
+    int getDepthImgHeight();
+    void setDepthImgHeight(const int& height);
+    void setDepthImgWidth(const int& width);
+
+    //////////////////////////////////////////////////////////////////////////
+    //                         shared sensor resources
+    //////////////////////////////////////////////////////////////////////////
+    void setSensorPcl(int16_t* ptr_pcl);
+    std::shared_ptr<int16_t*> getSensorPcl();
+
+    void setSensorImg_GL(uint8_t* ptr_img);
+    std::shared_ptr<uint8_t*> getSensorImg_GL();
+
+    void setSensorPts(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getSensorPts();
+
+    void setSensorImg_CV(uint8_t* ptr_img);
+    std::shared_ptr<uint8_t*> getSensorImg_CV();
+
+    //////////////////////////////////////////////////////////////////////////
+    //                         shared API resources
+    //////////////////////////////////////////////////////////////////////////
+    void setIntactPcl(int16_t* ptr_pcl);
+    std::shared_ptr<int16_t*> getIntactPcl();
+
+    void setIntactImg_GL(uint8_t* ptr_img);
+    std::shared_ptr<uint8_t*> getIntactImg_GL();
+
+    void setIntactPts(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getIntactPts();
+
+    void setIntactImg_CV(uint8_t* ptr_img);
+    std::shared_ptr<uint8_t*> getIntactImg_CV();
+
+    void setIntactBoundary(std::pair<Point, Point>& boundary);
+    std::pair<Point, Point> getIntactBoundary();
 };
 #endif /* INTACT_H */
