@@ -352,12 +352,6 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
     }
 }
 
-void Intact::render(std::shared_ptr<Intact>& sptr_intact)
-{
-    WHILE_CLUSTERS_READY
-    viewer::draw(sptr_intact);
-}
-
 void Intact::cluster(const float& epsilon, const int& minPoints,
     std::shared_ptr<Intact>& sptr_intact)
 {
@@ -408,6 +402,12 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
         sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
         CLUSTERS_READY
     }
+}
+
+void Intact::render(std::shared_ptr<Intact>& sptr_intact)
+{
+    WHILE_CLUSTERS_READY
+    //viewer::draw(sptr_intact);
 }
 
 void Intact::showObjects(std::vector<std::string>& classnames,
