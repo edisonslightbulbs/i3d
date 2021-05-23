@@ -15,7 +15,7 @@
 #include "yolov5.h"
 
 Intact::Intact(int& numPts)
-    : m_numPts(numPts)
+    : m_numPoints(numPts)
     , m_pclsize(numPts * 3)
     , m_imgsize(numPts * 4)
 {
@@ -30,8 +30,9 @@ Intact::Intact(int& numPts)
     sptr_isKinectReady = std::make_shared<bool>(false);
     sptr_isIntactReady = std::make_shared<bool>(false);
 
-    sptr_points = std::make_shared<std::vector<Point>>(m_pclsize);
-    sptr_intactPoints = std::make_shared<std::vector<Point>>(m_pclsize);
+    sptr_refinedPoints = std::make_shared<std::vector<Point>>(m_pclsize);
+    sptr_unrefinedPoints = std::make_shared<std::vector<Point>>(m_pclsize);
+    sptr_segmentedPoints = std::make_shared<std::vector<Point>>(m_pclsize);
     sptr_chromaBkgdPoints = std::make_shared<std::vector<Point>>(m_pclsize);
 }
 
@@ -162,20 +163,36 @@ std::pair<Point, Point> Intact::getIntactBoundary()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//                              shared sensor resources
+//                              shared point-cloud points
 ///////////////////////////////////////////////////////////////////////////////
 
-void Intact::setSensorPts(const std::vector<Point>& points)
+void Intact::setUnrefinedPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_sensorMutex);
-    *sptr_points = points;
+    *sptr_unrefinedPoints = points;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getSensorPts()
+std::shared_ptr<std::vector<Point>> Intact::getUnrefinedPoints()
 {
     std::lock_guard<std::mutex> lck(m_sensorMutex);
-    return sptr_points;
+    return sptr_unrefinedPoints;
 }
+
+void Intact::setRefinedPoints(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_sensorMutex);
+    *sptr_refinedPoints = points;
+}
+
+std::shared_ptr<std::vector<Point>> Intact::getRefinedPoints()
+{
+    std::lock_guard<std::mutex> lck(m_sensorMutex);
+    return sptr_refinedPoints;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                              shared sensor resources
+///////////////////////////////////////////////////////////////////////////////
 
 void Intact::setSensorPcl(int16_t* ptr_pcl)
 {
@@ -195,7 +212,7 @@ void Intact::setSensorImg_GL(uint8_t* ptr_img)
     sptr_sensorImg_GL = std::make_shared<uint8_t*>(ptr_img);
 }
 
-__attribute__((unused)) std::shared_ptr<uint8_t*> Intact::getSensorImg_GL()
+std::shared_ptr<uint8_t*> Intact::getSensorImg_GL()
 {
     std::lock_guard<std::mutex> lck(m_sensorMutex);
     return sptr_sensorImg_GL;
@@ -217,16 +234,16 @@ std::shared_ptr<uint8_t*> Intact::getSensorImg_CV()
 //                              shared api resources
 ///////////////////////////////////////////////////////////////////////////////
 
-void Intact::setIntactPts(const std::vector<Point>& points)
+void Intact::setSegmentPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_intactMutex);
-    *sptr_intactPoints = points;
+    *sptr_segmentedPoints = points;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getIntactPts()
+std::shared_ptr<std::vector<Point>> Intact::getSegmentPoints()
 {
     std::lock_guard<std::mutex> lck(m_intactMutex);
-    return sptr_intactPoints;
+    return sptr_segmentedPoints;
 }
 
 void Intact::setIntactPcl(int16_t* ptr_pcl)
@@ -269,13 +286,13 @@ std::shared_ptr<uint8_t*> Intact::getIntactImg_CV()
 //                           chroma background
 ///////////////////////////////////////////////////////////////////////////////
 
-void Intact::setChromaBkgdPts(const std::vector<Point>& points)
+void Intact::setChromaBkgdPoints(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_bkgdMutex);
     *sptr_chromaBkgdPoints = points;
 }
 
-std::shared_ptr<std::vector<Point>> Intact::getChromaBkgdPts()
+std::shared_ptr<std::vector<Point>> Intact::getChromaBkgdPoints()
 {
     std::lock_guard<std::mutex> lck(m_bkgdMutex);
     return sptr_chromaBkgdPoints;
@@ -321,24 +338,24 @@ std::shared_ptr<uint8_t*> Intact::getChromaBkgdImg_CV()
 //                          pipeline operations
 ///////////////////////////////////////////////////////////////////////////////
 
-void Intact::render(std::shared_ptr<Intact>& sptr_intact)
-{
-    WHILE_CLUSTERS_READY
-    viewer::draw(sptr_intact);
-}
-
 void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 {
     WHILE_KINECT_READY
     START
     while (sptr_intact->isRun()) {
-        std::vector<Point> points = *sptr_intact->getSensorPts();
-        std::vector<Point> seg = region::segment(points);
-        std::pair<Point, Point> boundary = region::queryBoundary(seg);
-        sptr_intact->setIntactPts(seg);
+        std::vector<Point> points = *sptr_intact->getRefinedPoints();
+        std::vector<Point> segmentPoints = region::segment(points);
+        std::pair<Point, Point> boundary = region::queryBoundary(segmentPoints);
+        sptr_intact->setSegmentPoints(segmentPoints);
         sptr_intact->setIntactBoundary(boundary);
         SEGMENT_READY
     }
+}
+
+void Intact::render(std::shared_ptr<Intact>& sptr_intact)
+{
+    WHILE_CLUSTERS_READY
+    viewer::draw(sptr_intact);
 }
 
 void Intact::cluster(const float& epsilon, const int& minPoints,
@@ -347,9 +364,8 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
     WHILE_INTACT_READY
     START
     while (sptr_intact->isRun()) {
-
-        Timer timer;
-        std::vector<Point> points = *sptr_intact->getIntactPts();
+        std::vector<Point> points = *sptr_intact->getSegmentPoints();
+        std::vector<Point> frame = *sptr_intact->getUnrefinedPoints();
 
         // dbscan using kd-tree: returns clustered indexes
         auto clusters = dbscan::cluster(points, epsilon, minPoints);
@@ -361,40 +377,32 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
                 return a.size() > b.size();
             });
 
-        // for stitching images from clusters
-        const uint32_t pclsize = points.size() * 3;
-        const uint32_t imgsize = points.size() * 4;
+        // define chromakey color for tabletop surface
+        uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
+        uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
+
+        // use clustered indexes to chromakey a selected cluster
+        for (const auto& index : clusters[0]) {
+            int id = points[index].m_id;
+            frame[id].setPixel_GL(rgb);
+            frame[id].setPixel_CV(bgra);
+        }
+
+        // sizes
+        const int numPoints = sptr_intact->m_numPoints;
+        const uint32_t pclsize = numPoints * 3;
+        const uint32_t imgsize = numPoints * 4;
 
         int16_t pclBuf[pclsize];
         uint8_t imgBuf_GL[pclsize];
         uint8_t imgBuf_CV[imgsize];
 
-        // define chromakey color for tabletop surface
-        uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
-        uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
-
-        // for background points
-        std::vector<Point> bkgd;
-
-        // use clustered indexes to label point cloud
-        int clusterIndex = 0;
-        for (const auto& cluster : clusters) {
-            // if (cluster.size() < 25) {
-            //     continue;
-            // }
-            for (const auto& index : cluster) {
-
-                // chromakey pixels in cluster 0, i.e., the tabletop cluster
-                if (clusterIndex == 0) {
-                    points[index].setPixel_GL(rgb);
-                    points[index].setPixel_CV(bgra);
-                    bkgd.emplace_back(points[index]);
-                }
-                stitch(index, points[index], pclBuf, imgBuf_GL, imgBuf_CV);
-            }
-            clusterIndex++;
+        // stitch data from processed point cloud
+        for (int i = 0; i < numPoints; i++) {
+            stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
         }
-        sptr_intact->setChromaBkgdPts(points);
+
+        sptr_intact->setChromaBkgdPoints(frame);
         sptr_intact->setChromaBkgdPcl(pclBuf);
         sptr_intact->setChromaBkgdImg_GL(imgBuf_GL);
         sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
@@ -414,8 +422,10 @@ void Intact::showObjects(std::vector<std::string>& classnames,
         // get resources
         int w = sptr_intact->getDepthImgWidth();
         int h = sptr_intact->getDepthImgHeight();
+
         // uint8_t* ptr_img = *sptr_intact->getSensorImg_CV();
-        uint8_t* ptr_img = *sptr_intact->getIntactImg_CV();
+        // uint8_t* ptr_img = *sptr_intact->getIntactImg_CV();
+        uint8_t* ptr_img = *sptr_intact->getChromaBkgdImg_CV();
 
         // create image frame
         cv::Mat img;
