@@ -12,7 +12,7 @@
 class Intact {
 
 public:
-    int m_numPts;
+    int m_numPoints;
     int m_pclsize;
     int m_imgsize;
     int m_depthWidth {};
@@ -25,23 +25,26 @@ private:
     std::mutex m_bkgdMutex;
     std::mutex m_semaphoreMutex;
 
+    // point clouds
+    std::shared_ptr<std::vector<Point>> sptr_unrefinedPoints = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_refinedPoints = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_segmentedPoints = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_chromaBkgdPoints = nullptr;
+
     // shared sensor resources
     std::shared_ptr<uint8_t*> sptr_sensorImg_GL = nullptr;
     std::shared_ptr<uint8_t*> sptr_sensorImg_CV = nullptr;
     std::shared_ptr<int16_t*> sptr_sensorPcl = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_points = nullptr;
 
     // shared api resources
     std::pair<Point, Point> m_intactBoundary {};
     std::shared_ptr<uint8_t*> sptr_intactImg_GL = nullptr;
     std::shared_ptr<uint8_t*> sptr_intactImg_CV = nullptr;
     std::shared_ptr<int16_t*> sptr_intactPcl = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_intactPoints = nullptr;
 
     std::shared_ptr<int16_t*> sptr_chromaBkgdPcl = nullptr;
     std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_GL = nullptr;
     std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_CV = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_chromaBkgdPoints = nullptr;
 
     // semaphores for asynchronous threads
     std::shared_ptr<bool> sptr_run;
@@ -133,6 +136,18 @@ public:
     void setDepthImgHeight(const int& height);
     void setDepthImgWidth(const int& width);
 
+    ///////////////////////////////////////////////////////////////////////////////
+    //                         shared point-cloud points
+    ///////////////////////////////////////////////////////////////////////////////
+    void setUnrefinedPoints(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getUnrefinedPoints();
+
+    void setRefinedPoints(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getRefinedPoints();
+
+    void setChromaBkgdPoints(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getChromaBkgdPoints();
+
     //////////////////////////////////////////////////////////////////////////
     //                         shared sensor resources
     //////////////////////////////////////////////////////////////////////////
@@ -140,10 +155,7 @@ public:
     std::shared_ptr<int16_t*> getSensorPcl();
 
     void setSensorImg_GL(uint8_t* ptr_img);
-    __attribute__((unused)) std::shared_ptr<uint8_t*> getSensorImg_GL();
-
-    void setSensorPts(const std::vector<Point>& points);
-    std::shared_ptr<std::vector<Point>> getSensorPts();
+    std::shared_ptr<uint8_t*> getSensorImg_GL();
 
     void setSensorImg_CV(uint8_t* ptr_img);
     std::shared_ptr<uint8_t*> getSensorImg_CV();
@@ -157,8 +169,8 @@ public:
     void setIntactImg_GL(uint8_t* ptr_img);
     std::shared_ptr<uint8_t*> getIntactImg_GL();
 
-    void setIntactPts(const std::vector<Point>& points);
-    std::shared_ptr<std::vector<Point>> getIntactPts();
+    void setSegmentPoints(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getSegmentPoints();
 
     void setIntactImg_CV(uint8_t* ptr_img);
     std::shared_ptr<uint8_t*> getIntactImg_CV();
@@ -177,8 +189,5 @@ public:
 
     void setChromaBkgdImg_CV(uint8_t* ptr_img);
     std::shared_ptr<uint8_t*> getChromaBkgdImg_CV();
-
-    void setChromaBkgdPts(const std::vector<Point>& points);
-    std::shared_ptr<std::vector<Point>> getChromaBkgdPts();
 };
 #endif /* INTACT_H */
