@@ -6,11 +6,11 @@
 #include <utility>
 
 #include "dbscan.h"
+#include "i3d.h"
 #include "intact.h"
 #include "kinect.h"
 #include "macros.hpp"
 #include "region.h"
-#include "utils.hpp"
 #include "viewer.h"
 #include "yolov5.h"
 
@@ -345,10 +345,45 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
     while (sptr_intact->isRun()) {
         std::vector<Point> points = *sptr_intact->getRefinedPoints();
         std::vector<Point> segmentPoints = region::segment(points);
-        std::pair<Point, Point> boundary = region::queryBoundary(segmentPoints);
+        std::pair<Point, Point> boundary = i3d::queryBoundary(segmentPoints);
         sptr_intact->setSegmentPoints(segmentPoints);
         sptr_intact->setIntactBoundary(boundary);
         SEGMENT_READY
+    }
+}
+
+void Intact::sift(std::shared_ptr<Intact>& sptr_intact)
+{
+    int numPts = sptr_intact->m_numPoints;
+    int pclsize = sptr_intact->m_pclsize;
+    int imgsize = sptr_intact->m_imgsize;
+
+    int16_t pclBuf[pclsize];
+    uint8_t imgBuf_GL[pclsize];
+    uint8_t imgBuf_CV[imgsize];
+
+    WHILE_SEGMENT_READY
+    START
+    while (sptr_intact->isRun()) {
+        auto* ptr_pcl = *sptr_intact->getSensorPcl();
+        auto* ptr_img = *sptr_intact->getSensorImg_CV();
+
+        for (int i = 0; i < numPts; i++) {
+            if (!i3d::inSegment(i, ptr_pcl,
+                    sptr_intact->getIntactBoundary().first,
+                    sptr_intact->getIntactBoundary().second)) {
+                i3d::addPixel_CV(i, imgBuf_CV);
+                continue;
+            }
+            i3d::addPoint(i, pclBuf, ptr_pcl);
+            i3d::addPixel_GL(i, imgBuf_GL, ptr_img);
+            i3d::addPixel_CV(i, imgBuf_CV, ptr_img);
+        }
+        sptr_intact->setIntactPcl(ptr_pcl);
+        sptr_intact->setIntactImg_GL(imgBuf_GL);
+        sptr_intact->setIntactImg_CV(imgBuf_CV);
+        INTACT_READY
+        POLLING_EXIT_STATUS
     }
 }
 
@@ -393,7 +428,7 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
 
         // stitch data from processed point cloud
         for (int i = 0; i < numPoints; i++) {
-            stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
+            i3d::stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
         }
 
         sptr_intact->setChromaBkgdPoints(frame);
@@ -407,7 +442,7 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
     WHILE_CLUSTERS_READY
-    //viewer::draw(sptr_intact);
+    // viewer::draw(sptr_intact);
 }
 
 void Intact::showObjects(std::vector<std::string>& classnames,
