@@ -1,7 +1,7 @@
-#include "helpers.h"
+#include "i3d.h"
 
 void i3d::configTorch(
-        std::vector<std::string>& classNames, torch::jit::script::Module& module)
+    std::vector<std::string>& classNames, torch::jit::script::Module& module)
 {
     const std::string scriptName = io::pwd() + "/resources/torchscript.pt";
     const std::string cocoNames = io::pwd() + "/resources/coco.names";
@@ -14,9 +14,8 @@ void i3d::configTorch(
 }
 
 void i3d::adapt(const int& index, Point& point, const int16_t* ptr_pcl,
-           const uint8_t* ptr_img)
+    const uint8_t* ptr_img)
 {
-
     int16_t x = ptr_pcl[3 * index + 0];
     int16_t y = ptr_pcl[3 * index + 1];
     int16_t z = ptr_pcl[3 * index + 2];
@@ -36,7 +35,8 @@ void i3d::adapt(const int& index, Point& point, const int16_t* ptr_pcl,
     point.setPixel_CV(bgra);
 }
 
-bool i3d::invalid(const int& index, const int16_t* ptr_pcl, const uint8_t* ptr_img)
+bool i3d::invalid(
+    const int& index, const int16_t* ptr_pcl, const uint8_t* ptr_img)
 {
     if (ptr_pcl[3 * index + 0] == 0 && ptr_pcl[3 * index + 1] == 0
         && ptr_pcl[3 * index + 2] == 0) {
@@ -57,7 +57,8 @@ void i3d::addPoint(const int& index, int16_t* ptr_pcl)
     ptr_pcl[3 * index + 2] = 0;
 }
 
-void i3d::addPoint(const int& index, int16_t* ptr_pclDest, const int16_t* ptr_pclSrc)
+void i3d::addPoint(
+    const int& index, int16_t* ptr_pclDest, const int16_t* ptr_pclSrc)
 {
     ptr_pclDest[3 * index + 0] = ptr_pclSrc[3 * index + 0];
     ptr_pclDest[3 * index + 1] = ptr_pclSrc[3 * index + 1];
@@ -65,7 +66,7 @@ void i3d::addPoint(const int& index, int16_t* ptr_pclDest, const int16_t* ptr_pc
 }
 
 void i3d::addPixel_CV(
-        const int& index, uint8_t* ptr_imgDest, const uint8_t* ptr_imgSrc)
+    const int& index, uint8_t* ptr_imgDest, const uint8_t* ptr_imgSrc)
 {
     ptr_imgDest[4 * index + 0] = ptr_imgSrc[4 * index + 0];
     ptr_imgDest[4 * index + 1] = ptr_imgSrc[4 * index + 1];
@@ -74,7 +75,7 @@ void i3d::addPixel_CV(
 }
 
 void i3d::addPixel_GL(
-        const int& index, uint8_t* ptr_imgDest, const uint8_t* ptr_imgSrc)
+    const int& index, uint8_t* ptr_imgDest, const uint8_t* ptr_imgSrc)
 {
     ptr_imgDest[3 * index + 2] = ptr_imgSrc[4 * index + 0];
     ptr_imgDest[3 * index + 1] = ptr_imgSrc[4 * index + 1];
@@ -97,7 +98,7 @@ void i3d::addPixel_GL(const int& index, uint8_t* ptr_img)
 }
 
 bool i3d::inSegment(
-        const int& index, const short* ptr_pcl, const Point& min, const Point& max)
+    const int& index, const short* ptr_pcl, const Point& min, const Point& max)
 {
     if (ptr_pcl[3 * index + 2] == 0) {
         return false;
@@ -119,7 +120,7 @@ bool i3d::inSegment(
 }
 
 void i3d::stitch(const int& index, Point& point, int16_t* ptr_pcl,
-            uint8_t* ptr_img_GL, uint8_t* ptr_img_CV)
+    uint8_t* ptr_img_GL, uint8_t* ptr_img_CV)
 {
     ptr_pcl[3 * index + 0] = point.m_xyz[0]; // x
     ptr_pcl[3 * index + 1] = point.m_xyz[1]; // y
@@ -133,4 +134,37 @@ void i3d::stitch(const int& index, Point& point, int16_t* ptr_pcl,
     ptr_img_GL[3 * index + 0] = point.m_rgb[0]; // blue
     ptr_img_GL[3 * index + 1] = point.m_rgb[1]; // green
     ptr_img_GL[3 * index + 2] = point.m_rgb[2]; // red
+}
+
+/**
+ * queryBoundary
+ *   Queries the min max point boundaries of segmented context.
+ *
+ * @param points
+ *   Segmented interaction context.
+ *
+ * @retval
+ *    { Point_min, Point_max }
+ */
+std::pair<Point, Point> i3d::queryBoundary(std::vector<Point>& points)
+{
+    std::vector<int16_t> X(points.size());
+    std::vector<int16_t> Y(points.size());
+    std::vector<int16_t> Z(points.size());
+    for (auto& point : points) {
+        X.push_back(point.m_xyz[0]);
+        Y.push_back(point.m_xyz[1]);
+        Z.push_back(point.m_xyz[2]);
+    }
+
+    int16_t xMax = (int16_t)*std::max_element(X.begin(), X.end());
+    int16_t xMin = (int16_t)*std::min_element(X.begin(), X.end());
+    int16_t yMax = (int16_t)*std::max_element(Y.begin(), Y.end());
+    int16_t yMin = (int16_t)*std::min_element(Y.begin(), Y.end());
+    int16_t zMax = (int16_t)*std::max_element(Z.begin(), Z.end());
+    int16_t zMin = (int16_t)*std::min_element(Z.begin(), Z.end());
+
+    Point min(xMin, yMin, zMin);
+    Point max(xMax, yMax, zMax);
+    return { min, max };
 }
