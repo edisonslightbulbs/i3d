@@ -370,6 +370,7 @@ std::shared_ptr<Intact::t_clusters> Intact::getClusters()
 
 void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
 {
+#if SEGMENT == 1
     WHILE_KINECT_READY
     START
     while (sptr_intact->isRun()) {
@@ -380,10 +381,12 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_intact)
         sptr_intact->setIntactBoundary(boundary);
         SEGMENT_READY
     }
+#endif
 }
 
 void Intact::sift(std::shared_ptr<Intact>& sptr_intact)
 {
+#if SIFT == 1
     int numPts = sptr_intact->m_numPoints;
     int pclsize = sptr_intact->m_pclsize;
     int imgsize = sptr_intact->m_imgsize;
@@ -415,11 +418,13 @@ void Intact::sift(std::shared_ptr<Intact>& sptr_intact)
         INTACT_READY
         POLLING_EXIT_STATUS
     }
+#endif
 }
 
 void Intact::cluster(const float& epsilon, const int& minPoints,
     std::shared_ptr<Intact>& sptr_intact)
 {
+#if CLUSTER == 1
     WHILE_INTACT_READY
     START
     while (sptr_intact->isRun()) {
@@ -438,17 +443,21 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
         sptr_intact->setClusters({ points, clusters });
         CLUSTERS_READY
     }
+#endif
 }
 
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
+#if RENDER == 1
     WHILE_CHROMABACKGROUND_READY
     // viewer::draw(sptr_intact);
+#endif
 }
 
 void Intact::showObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
+#if DETECT == 1
     WHILE_CHROMABACKGROUND_READY
     while (sptr_intact->isRun()) {
 
@@ -520,6 +529,7 @@ void Intact::showObjects(std::vector<std::string>& classnames,
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -528,13 +538,14 @@ void Intact::showObjects(std::vector<std::string>& classnames,
 
 void Intact::chromakey(std::shared_ptr<Intact>& sptr_intact)
 {
+#if CHROMAKEY == 1
 
     WHILE_CLUSTERS_READY
     START
     while (sptr_intact->isRun()) {
 
         // get un-edited image
-        std::vector<Point> frame = *sptr_intact->getUnrefinedPoints();
+        std::vector<Point> frame = *sptr_intact->getRefinedPoints();
 
         // get clusters
         auto clusters = sptr_intact->getClusters();
@@ -622,15 +633,15 @@ void Intact::chromakey(std::shared_ptr<Intact>& sptr_intact)
         uint8_t imgBuf_GL[pclsize];
         uint8_t imgBuf_CV[imgsize];
 
-        // stitch data from processed point cloud
+        // stitch images from processed point cloud
         for (int i = 0; i < numPoints; i++) {
             i3d::stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
         }
-
         sptr_intact->setChromaBkgdPoints(frame);
         sptr_intact->setChromaBkgdPcl(pclBuf);
         sptr_intact->setChromaBkgdImg_GL(imgBuf_GL);
         sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
         CHROMABACKGROUND_READY
     }
+#endif
 }
