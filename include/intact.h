@@ -24,6 +24,7 @@ private:
     std::mutex m_intactMutex;
     std::mutex m_bkgdMutex;
     std::mutex m_semaphoreMutex;
+    std::mutex m_clusterMutex;
 
     // point clouds
     std::shared_ptr<std::vector<Point>> sptr_unrefinedPoints = nullptr;
@@ -46,6 +47,12 @@ private:
     std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_GL = nullptr;
     std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_CV = nullptr;
 
+    // typedef alias for clusters
+    typedef std::pair<std::vector<Point>,
+        std::vector<std::vector<unsigned long>>>
+        t_clusters;
+    std::shared_ptr<t_clusters> sptr_clusters = nullptr;
+
     // semaphores for asynchronous threads
     std::shared_ptr<bool> sptr_run;
     std::shared_ptr<bool> sptr_stop;
@@ -53,6 +60,7 @@ private:
     std::shared_ptr<bool> sptr_isSegmented;
     std::shared_ptr<bool> sptr_isKinectReady;
     std::shared_ptr<bool> sptr_isIntactReady;
+    std::shared_ptr<bool> sptr_isBackgroundReady;
 
 public:
     /**
@@ -120,6 +128,7 @@ public:
     bool isClustered();
     bool isKinectReady();
     bool isIntactReady();
+    bool isBackgroundReady();
 
     void raiseRunFlag();
     void raiseStopFlag();
@@ -127,6 +136,7 @@ public:
     void raiseClusteredFlag();
     void raiseKinectReadyFlag();
     void raiseIntactReadyFlag();
+    void raiseBackgroundReadyFlag();
 
     //////////////////////////////////////////////////////////////////////////
     //                     depth image width and height
@@ -179,6 +189,13 @@ public:
     std::pair<Point, Point> getIntactBoundary();
 
     ///////////////////////////////////////////////////////////////////////////////
+    //                            cluster handlers
+    ///////////////////////////////////////////////////////////////////////////////
+
+    void setClusters(const t_clusters& clusters);
+    std::shared_ptr<t_clusters> getClusters();
+
+    ///////////////////////////////////////////////////////////////////////////////
     //                           chroma background
     ///////////////////////////////////////////////////////////////////////////////
     void setChromaBkgdPcl(int16_t* ptr_pcl);
@@ -190,6 +207,8 @@ public:
     void setChromaBkgdImg_CV(uint8_t* ptr_img);
     std::shared_ptr<uint8_t*> getChromaBkgdImg_CV();
 
-    void sift(std::shared_ptr<Intact>& sptr_intact);
+    static void sift(std::shared_ptr<Intact>& sptr_intact);
+
+    static void chromakey(std::shared_ptr<Intact>& sptr_intact);
 };
 #endif /* INTACT_H */
