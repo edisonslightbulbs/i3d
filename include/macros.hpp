@@ -98,8 +98,17 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define START bool init = true;
 #define STOP sptr_intact->raiseStopFlag();
+
+#define START bool init = true;
+
 #define PRINT(x) ply::write(x)
+
+#define SEGMENT 1
+#define SIFT 1
+#define RENDER 1
+#define DETECT 1
+#define CHROMAKEY 1
+#define CLUSTER 1
 
 #endif /*INTACT_MACROS_HPP*/
