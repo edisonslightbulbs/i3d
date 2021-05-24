@@ -189,5 +189,7 @@ public:
 
     void setChromaBkgdImg_CV(uint8_t* ptr_img);
     std::shared_ptr<uint8_t*> getChromaBkgdImg_CV();
+
+    void sift(std::shared_ptr<Intact>& sptr_intact);
 };
 #endif /* INTACT_H */
