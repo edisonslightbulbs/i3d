@@ -57,6 +57,12 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
         sptr_intact->raiseClusteredFlag();                                     \
     }
 
+#define CHROMABACKGROUND_READY                                                 \
+    if (init) {                                                                \
+        init = false;                                                          \
+        sptr_intact->raiseBackgroundReadyFlag();                               \
+    }
+
 #define POLLING_EXIT_STATUS                                                    \
     if (sptr_intact->isStop()) {                                               \
         sptr_intact->stop();                                                   \
@@ -84,6 +90,11 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 
 #define WHILE_CLUSTERS_READY                                                   \
     while (!sptr_intact->isClustered()) {                                      \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define WHILE_CHROMABACKGROUND_READY                                           \
+    while (!sptr_intact->isBackgroundReady()) {                                \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
