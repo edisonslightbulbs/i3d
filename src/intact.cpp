@@ -29,6 +29,7 @@ Intact::Intact(int& numPts)
     sptr_isSegmented = std::make_shared<bool>(false);
     sptr_isKinectReady = std::make_shared<bool>(false);
     sptr_isIntactReady = std::make_shared<bool>(false);
+    sptr_isBackgroundReady = std::make_shared<bool>(false);
 
     sptr_refinedPoints = std::make_shared<std::vector<Point>>(m_pclsize);
     sptr_unrefinedPoints = std::make_shared<std::vector<Point>>(m_pclsize);
@@ -39,6 +40,18 @@ Intact::Intact(int& numPts)
 ///////////////////////////////////////////////////////////////////////////////
 //                semaphores for asynchronous threads
 ///////////////////////////////////////////////////////////////////////////////
+
+void Intact::raiseBackgroundReadyFlag()
+{
+    std::lock_guard<std::mutex> lck(m_semaphoreMutex);
+    *sptr_isBackgroundReady = true;
+}
+
+bool Intact::isBackgroundReady()
+{
+    std::lock_guard<std::mutex> lck(m_semaphoreMutex);
+    return *sptr_isBackgroundReady;
+}
 
 void Intact::raiseSegmentedFlag()
 {
@@ -335,6 +348,22 @@ std::shared_ptr<uint8_t*> Intact::getChromaBkgdImg_CV()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//                            cluster handlers
+///////////////////////////////////////////////////////////////////////////////
+
+void Intact::setClusters(const t_clusters& clusters)
+{
+    std::lock_guard<std::mutex> lck(m_clusterMutex);
+    sptr_clusters = std::make_shared<t_clusters>(clusters);
+}
+
+std::shared_ptr<Intact::t_clusters> Intact::getClusters()
+{
+    std::lock_guard<std::mutex> lck(m_clusterMutex);
+    return sptr_clusters;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 //                          pipeline operations
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -394,7 +423,6 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
     START
     while (sptr_intact->isRun()) {
         std::vector<Point> points = *sptr_intact->getSegmentPoints();
-        std::vector<Point> frame = *sptr_intact->getUnrefinedPoints();
 
         // dbscan using kd-tree: returns clustered indexes
         auto clusters = dbscan::cluster(points, epsilon, minPoints);
@@ -406,49 +434,21 @@ void Intact::cluster(const float& epsilon, const int& minPoints,
                 return a.size() > b.size();
             });
 
-        // define chromakey color for tabletop surface
-        uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
-        uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
-
-        // use clustered indexes to chromakey a selected cluster
-        for (const auto& index : clusters[0]) {
-            int id = points[index].m_id;
-            frame[id].setPixel_GL(rgb);
-            frame[id].setPixel_CV(bgra);
-        }
-
-        // sizes
-        const int numPoints = sptr_intact->m_numPoints;
-        const uint32_t pclsize = numPoints * 3;
-        const uint32_t imgsize = numPoints * 4;
-
-        int16_t pclBuf[pclsize];
-        uint8_t imgBuf_GL[pclsize];
-        uint8_t imgBuf_CV[imgsize];
-
-        // stitch data from processed point cloud
-        for (int i = 0; i < numPoints; i++) {
-            i3d::stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
-        }
-
-        sptr_intact->setChromaBkgdPoints(frame);
-        sptr_intact->setChromaBkgdPcl(pclBuf);
-        sptr_intact->setChromaBkgdImg_GL(imgBuf_GL);
-        sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
+        sptr_intact->setClusters({ points, clusters });
         CLUSTERS_READY
     }
 }
 
 void Intact::render(std::shared_ptr<Intact>& sptr_intact)
 {
-    WHILE_CLUSTERS_READY
+    WHILE_CHROMABACKGROUND_READY
     // viewer::draw(sptr_intact);
 }
 
 void Intact::showObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<Intact>& sptr_intact)
 {
-    WHILE_CLUSTERS_READY
+    WHILE_CHROMABACKGROUND_READY
     while (sptr_intact->isRun()) {
 
         // start frame rate clock
@@ -458,6 +458,7 @@ void Intact::showObjects(std::vector<std::string>& classnames,
         int w = sptr_intact->getDepthImgWidth();
         int h = sptr_intact->getDepthImgHeight();
 
+        // todo: introduce key press control mirroring openGL implementation
         // uint8_t* ptr_img = *sptr_intact->getSensorImg_CV();
         // uint8_t* ptr_img = *sptr_intact->getIntactImg_CV();
         uint8_t* ptr_img = *sptr_intact->getChromaBkgdImg_CV();
@@ -517,5 +518,57 @@ void Intact::showObjects(std::vector<std::string>& classnames,
             sptr_intact->raiseStopFlag();
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                       example/possible extensions
+///////////////////////////////////////////////////////////////////////////////
+
+void Intact::chromakey(std::shared_ptr<Intact>& sptr_intact)
+{
+
+    WHILE_CLUSTERS_READY
+    START
+    while (sptr_intact->isRun()) {
+
+        // get un-edited image
+        std::vector<Point> frame = *sptr_intact->getUnrefinedPoints();
+
+        // get clusters
+        auto clusters = sptr_intact->getClusters();
+        auto indexClusters = clusters->second;
+        std::vector<Point> points = clusters->first;
+
+        // define chromakey color for tabletop surface
+        uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
+        uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
+
+        // use clustered indexes to chromakey a selected cluster
+        for (const auto& index : indexClusters[0]) {
+            int id = points[index].m_id;
+            frame[id].setPixel_GL(rgb);
+            frame[id].setPixel_CV(bgra);
+        }
+
+        // sizes
+        const int numPoints = sptr_intact->m_numPoints;
+        const uint32_t pclsize = numPoints * 3;
+        const uint32_t imgsize = numPoints * 4;
+
+        int16_t pclBuf[pclsize];
+        uint8_t imgBuf_GL[pclsize];
+        uint8_t imgBuf_CV[imgsize];
+
+        // stitch data from processed point cloud
+        for (int i = 0; i < numPoints; i++) {
+            i3d::stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
+        }
+
+        sptr_intact->setChromaBkgdPoints(frame);
+        sptr_intact->setChromaBkgdPcl(pclBuf);
+        sptr_intact->setChromaBkgdImg_GL(imgBuf_GL);
+        sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
+        CHROMABACKGROUND_READY
     }
 }
