@@ -11,6 +11,7 @@
 #include "kinect.h"
 #include "macros.hpp"
 #include "region.h"
+#include "svd.h"
 #include "viewer.h"
 #include "yolov5.h"
 
@@ -544,9 +545,70 @@ void Intact::chromakey(std::shared_ptr<Intact>& sptr_intact)
         uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
         uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
 
+        ///////////////////////////////////////////////////
+        /////////////// beta testing //////////////////////
+        ///////////////////////////////////////////////////
+        // cast clusters of indexed to clusters of points
+        std::vector<std::vector<Point>> pointClusters;
+        for (const auto& cluster : indexClusters) {
+            std::vector<Point> heap;
+            for (const auto& index : cluster) {
+                heap.emplace_back(points[index]);
+            }
+            pointClusters.emplace_back(heap);
+        }
+
+        // config flags for svd computation
+        int flag = Eigen::ComputeThinU | Eigen::ComputeThinV;
+
+        // heap norms for each cluster
+        std::vector<Eigen::Vector3d> normals;
+        for (const auto& cluster : pointClusters) {
+            SVD usv(cluster, flag);
+            normals.emplace_back(usv.getV3Normal());
+        }
+
+        const float ARGMIN = 0.4;
+        // evaluate coplanarity between clusters
+        int clusterIndex = 0;
+        std::vector<Point> tabletop = pointClusters[0];
+        for (const auto& normal : normals) {
+            double a = normals[0].dot(normal);
+            double b = normals[0].norm() * normal.norm();
+            double solution = std::acos(a / b);
+
+            if (!std::isnan(solution) && solution < ARGMIN && solution > -ARGMIN
+                && pointClusters[clusterIndex].size() < 25) {
+                tabletop.insert(tabletop.end(),
+                    pointClusters[clusterIndex].begin(),
+                    pointClusters[clusterIndex].end());
+            }
+            clusterIndex++;
+        }
+
+        // find the upper and lower z limits
+        std::vector<float> zMeasures;
+        for (const auto& point : pointClusters[0]) {
+            zMeasures.emplace_back(point.m_xyz[2]);
+        }
+        int16_t maxH = *std::max_element(zMeasures.begin(), zMeasures.end());
+        int16_t minH = *std::min_element(zMeasures.begin(), zMeasures.end());
+
+        // use limits to refine tabletop points
+        std::vector<Point> bkgd; //
+        for (const auto& point : tabletop) {
+            if (point.m_xyz[2] > maxH || point.m_xyz[2] < minH) {
+                continue;
+            }
+            bkgd.emplace_back(point);
+        }
+        ///////////////////////////////////////////////////
+        /////////////// beta testing //////////////////////
+        ///////////////////////////////////////////////////
+
         // use clustered indexes to chromakey a selected cluster
-        for (const auto& index : indexClusters[0]) {
-            int id = points[index].m_id;
+        for (const auto& point : bkgd) {
+            int id = point.m_id;
             frame[id].setPixel_GL(rgb);
             frame[id].setPixel_CV(bgra);
         }
