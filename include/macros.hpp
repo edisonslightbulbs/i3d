@@ -33,82 +33,120 @@ __attribute__((unused)) constexpr uint8_t deepgreen[3] = { 53, 151, 143 };
 __attribute__((unused)) constexpr uint8_t darkgreen[3] = { 1, 102, 94 };
 __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 
-#define KINECT_READY                                                           \
+#define SLEEP_UNTIL_RESOURCES_READY                                            \
+    while (!sptr_i3d->isSensorReady()) {                                       \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+#define RAISE_SENSOR_RESOURCES_READY_FLAG                                      \
     if (init) {                                                                \
         init = false;                                                          \
-        sptr_intact->raiseKinectReadyFlag();                                   \
+        LOG(INFO) << "-- k4a driver running";                                  \
+        sptr_i3d->raiseSensorReadyFlag();                                      \
     }
 
-#define INTACT_READY                                                           \
+#define SLEEP_UNTIL_POINTCLOUD_READY                                           \
+    while (!sptr_i3d->isPCloudReady()) {                                       \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+#define RAISE_POINTCLOUD_READY_FLAG                                            \
     if (init) {                                                                \
         init = false;                                                          \
-        sptr_intact->raiseIntactReadyFlag();                                   \
+        LOG(INFO) << "-- point cloud created";                                 \
+        sptr_i3d->raisePCloudReadyFlag();                                      \
     }
 
-#define SEGMENT_READY                                                          \
+#define SLEEP_UNTIL_FRAMES_READY                                               \
+    while (!sptr_i3d->framesReady()) {                                         \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+#define RAISE_FRAMES_READY_FLAG                                                \
     if (init) {                                                                \
         init = false;                                                          \
-        sptr_intact->raiseSegmentedFlag();                                     \
+        LOG(INFO) << "-- openGL and openCV frames created ";                   \
+        sptr_i3d->raiseFramesReadyFlag();                                      \
+    }
+
+#define SLEEP_UNTIL_BOUNDARY_SET                                               \
+    while (!sptr_i3d->isBoundarySet()) {                                       \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+#define RAISE_BOUNDARY_SET_FLAG                                                \
+    if (init) {                                                                \
+        init = false;                                                          \
+        LOG(INFO) << "-- segment boundary set ";                               \
+        sptr_i3d->raiseBoundarySetFlag();                                      \
+    }
+
+#define SLEEP_UNTIL_SEGMENTATION_DONE                                          \
+    while (!sptr_i3d->isSegmented()) {                                         \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+#define RAISE_SEGMENTATION_DONE_FLAG                                           \
+    if (init) {                                                                \
+        init = false;                                                          \
+        LOG(INFO) << "-- segmenting point cloud";                              \
+        sptr_i3d->raiseSegmentedFlag();                                        \
     }
 
 #define CLUSTERS_READY                                                         \
     if (init) {                                                                \
         init = false;                                                          \
-        sptr_intact->raiseClusteredFlag();                                     \
+        sptr_i3d->raiseClusteredFlag();                                        \
     }
 
 #define CHROMABACKGROUND_READY                                                 \
     if (init) {                                                                \
         init = false;                                                          \
-        sptr_intact->raiseBackgroundReadyFlag();                               \
+        sptr_i3d->raiseBackgroundReadyFlag();                                  \
     }
 
-#define POLLING_EXIT_STATUS                                                    \
-    if (sptr_intact->isStop()) {                                               \
-        sptr_intact->stop();                                                   \
-    }
-
-#define WHILE_SEGMENT_READY                                                    \
-    while (!sptr_intact->isSegmented()) {                                      \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
-    }
-
-#define WHILE_KINECT_READY                                                     \
-    while (!sptr_intact->isKinectReady()) {                                    \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
-    }
-
-#define WHILE_INTACT_READY                                                     \
-    while (!sptr_intact->isIntactReady()) {                                    \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+#define POLL_EXIT_STATUS                                                       \
+    if (sptr_i3d->isStop()) {                                                  \
+        sptr_i3d->stop();                                                      \
     }
 
 #define WHILE_SEGMENT_READY                                                    \
-    while (!sptr_intact->isSegmented()) {                                      \
+    while (!sptr_i3d->isSegmented()) {                                         \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define SLEEP_UNTIL_SEGMENT_READY                                              \
+    while (!sptr_i3d->isSegmented()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
 #define WHILE_CLUSTERS_READY                                                   \
-    while (!sptr_intact->isClustered()) {                                      \
+    while (!sptr_i3d->isClustered()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
 #define WHILE_CHROMABACKGROUND_READY                                           \
-    while (!sptr_intact->isBackgroundReady()) {                                \
+    while (!sptr_i3d->isBackgroundReady()) {                                   \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define STOP sptr_intact->raiseStopFlag();
+#define STOP sptr_i3d->raiseStopFlag();
 
 #define START bool init = true;
 
 #define PRINT(x) ply::write(x)
 
-#define SEGMENT 1
-#define SIFT 1
-#define RENDER 1
-#define DETECT 1
-#define CHROMAKEY 1
-#define CLUSTER 1
+#define START_TIMER                                                            \
+    {                                                                          \
+        Timer timer;
+#define STOP_TIMER                                                             \
+    LOG(INFO) << " runtime @: " << timer.getDuration();                        \
+    }
+
+#define BUILD_POINTCLOUD 1 // tested ready for commit
+#define FRAMES 1           // testing not ready for commit
+#define REGION 1           // tested ready for commit
+#define SEGMENT 1          // testing not ready for commit
+#define RENDER 1           // testing not ready for commit
+#define OR 0               // testing not ready for commit
+#define CHROMAKEY 0        // testing not ready for commit
+#define CLUSTER 0          // testing not ready for commit
+
+// todo: introduce macro configuration logic
 
 #endif /*INTACT_MACROS_HPP*/
