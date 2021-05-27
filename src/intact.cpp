@@ -1,7 +1,6 @@
 #include <chrono>
 #include <k4a/k4a.hpp>
 #include <opencv2/core.hpp>
-#include <opencv2/opencv.hpp>
 #include <thread>
 #include <utility>
 
@@ -37,115 +36,115 @@ Intact::Intact()
 
 bool Intact::isRun()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_run;
 }
 
 void Intact::raiseRunFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_run = true;
 }
 
 bool Intact::isSensorReady()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_resourcesReady;
 }
 
 void Intact::raiseSensorReadyFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_resourcesReady = true;
 }
 
 bool Intact::isSegmented()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_segmented;
 }
 
 bool Intact::isBoundarySet()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_boundarySet;
 }
 
 void Intact::raiseSegmentedFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_segmented = true;
 }
 
 void Intact::raiseBoundarySetFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_boundarySet = true;
 }
 
 bool Intact::isPCloudReady()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_pCloudReady;
 }
 
 void Intact::raisePCloudReadyFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_pCloudReady = true;
 }
 
 bool Intact::framesReady()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_framesReady;
 }
 
 void Intact::raiseFramesReadyFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_framesReady = true;
 }
 
 bool Intact::isClustered()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_clustered;
 }
 
 void Intact::raiseClusteredFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_clustered = true;
 }
 
 bool Intact::isBackgroundReady()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_isBackgroundReady;
 }
 
 void Intact::raiseBackgroundReadyFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_isBackgroundReady = true;
 }
 
 bool Intact::isStop()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_stop;
 }
 
 void Intact::raiseStopFlag()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_stop = true;
 }
 
 void Intact::stop()
 {
-    std::lock_guard<std::mutex> lck(m_i3dFlagMutex);
+    std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_run = false;
 }
 
