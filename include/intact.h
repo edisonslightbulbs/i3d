@@ -40,15 +40,15 @@ private:
 
     std::mutex m_boundaryMutex;
 
-    std::mutex m_bkgdMutex;
-    std::mutex m_i3dFlagMutex;
+    //std::mutex m_bkgdMutex;
+    std::mutex m_flagMutex;
     std::mutex m_clusterMutex;
 
     // point clouds
     std::shared_ptr<std::vector<Point>> sptr_pCloud = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloudSeg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloud2x2Bin = nullptr;
-    std::shared_ptr<std::vector<Point>> sptr_pCloudSeg2x2Bin = nullptr;
+    // std::shared_ptr<std::vector<Point>> sptr_pCloudSeg2x2Bin = nullptr;
     // std::shared_ptr<std::vector<Point>> sptr_chromaBkgdPoints = nullptr;
 
     // sensor resources
