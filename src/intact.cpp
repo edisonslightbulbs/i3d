@@ -418,7 +418,7 @@ void Intact::buildPCloud(std::shared_ptr<Intact>& sptr_i3d)
 
     std::vector<Point> pCloud(w * h);
     while (sptr_i3d->isRun()) {
-
+        START_TIMER
         // get depth and xy table data
         std::memcpy(ptr_depthData, *sptr_i3d->getSensorDepthData(),
             sizeof(int16_t) * w * h);
@@ -442,6 +442,7 @@ void Intact::buildPCloud(std::shared_ptr<Intact>& sptr_i3d)
 
         sptr_i3d->setPCloud2x2Bin(optimizedPCloud);
         RAISE_POINTCLOUD_READY_FLAG
+        STOP_TIMER(" point cloud builder thread: ")
     }
 #endif
 }
@@ -462,7 +463,7 @@ void Intact::frame(std::shared_ptr<Intact>& sptr_i3d)
     std::vector<uint8_t> imgFrame_CV(w * h * 4);
 
     while (sptr_i3d->isRun()) {
-
+        START_TIMER
         // get point cloud data and image
         std::memcpy(ptr_sensorPCloudData, *sptr_i3d->getSensorPCloudData(),
             sizeof(int16_t) * w * h * 3);
@@ -488,6 +489,7 @@ void Intact::frame(std::shared_ptr<Intact>& sptr_i3d)
         sptr_i3d->setImgFrame_GL(imgFrame_GL);
         sptr_i3d->setImgFrame_CV(imgFrame_CV);
         RAISE_FRAMES_READY_FLAG
+        STOP_TIMER(" frame builder thread: ")
     }
 #endif
 }
@@ -498,20 +500,21 @@ void Intact::region(std::shared_ptr<Intact>& sptr_i3d)
     SLEEP_UNTIL_POINTCLOUD_READY
     START
     while (sptr_i3d->isRun()) {
+        START_TIMER
         std::vector<Point> pCloud = *sptr_i3d->getPCloud2x2Bin();
         std::vector<Point> pCloudSeg = region::segment(pCloud);
         std::pair<Point, Point> boundary = i3d::queryBoundary(pCloudSeg);
         sptr_i3d->setPCloudSeg2x2Bin(pCloudSeg);
         sptr_i3d->setI3dBoundary(boundary);
         RAISE_BOUNDARY_SET_FLAG
+        STOP_TIMER(" region finder thread: ")
     }
 #endif
 }
 
 void Intact::segment(std::shared_ptr<Intact>& sptr_i3d)
 {
-#if SEGMENT == 1 // todo: this is where its all gone to shit can we fix it ?
-    // SLEEP_UNTIL_FRAMES_READY
+#if SEGMENT == 1
     SLEEP_UNTIL_BOUNDARY_SET
     START
     int w = sptr_i3d->getDepthWidth();
@@ -520,6 +523,7 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_i3d)
     std::vector<Point> pCloudSeg(w * h);
 
     while (sptr_i3d->isRun()) {
+        START_TIMER
         std::vector<Point> pCloud = *sptr_i3d->getPCloud();
         std::vector<int16_t> pCloudFrame = *sptr_i3d->getPCloudFrame();
         std::vector<uint8_t> imgFrame_GL = *sptr_i3d->getImgFrame_GL();
@@ -542,6 +546,7 @@ void Intact::segment(std::shared_ptr<Intact>& sptr_i3d)
         sptr_i3d->setI3dPCloudSegFrame(pCloudFrame);
         sptr_i3d->setI3dImgSegFrame_GL(imgFrame_GL);
         RAISE_SEGMENTATION_DONE_FLAG
+        STOP_TIMER(" segmentation thread: ")
     }
 #endif
 }
@@ -575,7 +580,6 @@ void Intact::render(std::shared_ptr<Intact>& sptr_i3d)
 {
 #if RENDER == 1
     LOG(INFO) << "-- rendering";
-    // SLEEP_UNTIL_FRAMES_READY
     SLEEP_UNTIL_SEGMENT_READY
     viewer::draw(sptr_i3d);
 #endif
