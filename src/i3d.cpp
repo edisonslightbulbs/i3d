@@ -174,6 +174,7 @@ void i3d::stitch(const int& index, Point& point, int16_t* ptr_pcl,
  */
 std::pair<Point, Point> i3d::queryBoundary(std::vector<Point>& points)
 {
+    // todo: optimize
     std::vector<int16_t> X(points.size());
     std::vector<int16_t> Y(points.size());
     std::vector<int16_t> Z(points.size());
