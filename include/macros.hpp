@@ -129,14 +129,17 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 
 #define START bool init = true;
 
-#define PRINT(x) ply::write(x)
+#define PRINT(pCloud) ply::write(pCloud);
 
-#define START_TIMER                                                            \
-    {                                                                          \
-        Timer timer;
-#define STOP_TIMER                                                             \
-    LOG(INFO) << " runtime @: " << timer.getDuration();                        \
-    }
+#define BENCHMARK 0
+#if BENCHMARK == 1
+#define START_TIMER Timer timer;
+
+#define STOP_TIMER(str) LOG(INFO) << str << timer.getDuration() << " ms";
+#else
+#define START_TIMER
+#define STOP_TIMER(str)
+#endif
 
 #define BUILD_POINTCLOUD 1 // tested ready for commit
 #define FRAMES 1           // testing not ready for commit
