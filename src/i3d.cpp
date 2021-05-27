@@ -1,4 +1,5 @@
 #include "i3d.h"
+#include <cmath>
 
 void i3d::configTorch(
     std::vector<std::string>& classNames, torch::jit::script::Module& module)
@@ -13,107 +14,140 @@ void i3d::configTorch(
     }
 }
 
-void i3d::adapt(const int& index, Point& point, const int16_t* ptr_pcl,
-    const uint8_t* ptr_img)
+void i3d::adapt(const int& index, Point& point,
+    const std::vector<int16_t>& pCloudFrame,
+    const std::vector<uint8_t>& imgFrame)
 {
-    int16_t x = ptr_pcl[3 * index + 0];
-    int16_t y = ptr_pcl[3 * index + 1];
-    int16_t z = ptr_pcl[3 * index + 2];
+    int16_t x = pCloudFrame[3 * index + 0];
+    int16_t y = pCloudFrame[3 * index + 1];
+    int16_t z = pCloudFrame[3 * index + 2];
 
-    uint8_t b = ptr_img[4 * index + 0];
-    uint8_t g = ptr_img[4 * index + 1];
-    uint8_t r = ptr_img[4 * index + 2];
-    uint8_t a = ptr_img[4 * index + 3];
+    uint8_t b = imgFrame[4 * index + 0];
+    uint8_t g = imgFrame[4 * index + 1];
+    uint8_t r = imgFrame[4 * index + 2];
+    uint8_t a = imgFrame[4 * index + 3];
 
     int16_t xyz[3] = { x, y, z };
-    uint8_t rgb[3] = { r, g, b };
+    uint8_t rgba[4] = { r, g, b, a };
     uint8_t bgra[4] = { b, g, r, a };
 
     point.m_id = index;
     point.setPoint(xyz);
-    point.setPixel_GL(rgb);
+    point.setPixel_GL(rgba);
     point.setPixel_CV(bgra);
 }
 
-bool i3d::invalid(
-    const int& index, const int16_t* ptr_pcl, const uint8_t* ptr_img)
+bool i3d::null(const int& index, std::vector<int16_t>& pCloudFrame,
+    std::vector<uint8_t>& imgFrame)
 {
-    if (ptr_pcl[3 * index + 0] == 0 && ptr_pcl[3 * index + 1] == 0
-        && ptr_pcl[3 * index + 2] == 0) {
-        return true;
-    }
-
-    if (ptr_img[4 * index + 0] == 0 && ptr_img[4 * index + 1] == 0
-        && ptr_img[4 * index + 2] == 0 && ptr_img[4 * index + 3] == 0) {
+    if (pCloudFrame[3 * index + 2] == 0 && imgFrame[4 * index + 3] == 0) {
         return true;
     }
     return false;
 }
 
-void i3d::addPoint(const int& index, int16_t* ptr_pcl)
+bool i3d::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
+    const uint16_t* ptr_depth)
 {
-    ptr_pcl[3 * index + 0] = 0;
-    ptr_pcl[3 * index + 1] = 0;
-    ptr_pcl[3 * index + 2] = 0;
+    if (ptr_depth[index] == 0 && std::isnan(ptr_xyTable[index].xy.x)
+        && std::isnan(ptr_xyTable[index].xy.y)) {
+        return true;
+    }
+
+    int16_t x = ptr_xyTable[index].xy.x * (float)ptr_depth[index];
+    int16_t y = ptr_xyTable[index].xy.y * (float)ptr_depth[index];
+    int16_t z = (float)ptr_depth[index];
+    if (x == 0 && y == 0 && z == 0) {
+        return true;
+    }
+
+    return false;
 }
 
-void i3d::addPoint(
-    const int& index, int16_t* ptr_pclDest, const int16_t* ptr_pclSrc)
+bool i3d::invalid(
+    const int& index, const int16_t* ptr_pCloudData, const uint8_t* ptr_imgData)
 {
-    ptr_pclDest[3 * index + 0] = ptr_pclSrc[3 * index + 0];
-    ptr_pclDest[3 * index + 1] = ptr_pclSrc[3 * index + 1];
-    ptr_pclDest[3 * index + 2] = ptr_pclSrc[3 * index + 2];
+    if (ptr_pCloudData[3 * index + 2] == 0
+        || std::isnan(ptr_pCloudData[3 * index + 2])) {
+        return true;
+    }
+    if (std::isnan(ptr_imgData[index])) {
+        return true;
+    }
+    return false;
 }
 
-void i3d::addPixel_CV(
-    const int& index, uint8_t* ptr_imgDest, const uint8_t* ptr_imgSrc)
+void i3d::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame,
+    const int16_t* ptr_pCloudData)
 {
-    ptr_imgDest[4 * index + 0] = ptr_imgSrc[4 * index + 0];
-    ptr_imgDest[4 * index + 1] = ptr_imgSrc[4 * index + 1];
-    ptr_imgDest[4 * index + 2] = ptr_imgSrc[4 * index + 2];
-    ptr_imgDest[4 * index + 3] = ptr_imgSrc[4 * index + 3];
+    pCloudFrame[3 * index + 0] = ptr_pCloudData[3 * index + 0];
+    pCloudFrame[3 * index + 1] = ptr_pCloudData[3 * index + 1];
+    pCloudFrame[3 * index + 2] = ptr_pCloudData[3 * index + 2];
 }
 
-void i3d::addPixel_GL(
-    const int& index, uint8_t* ptr_imgDest, const uint8_t* ptr_imgSrc)
+void i3d::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame)
 {
-    ptr_imgDest[3 * index + 2] = ptr_imgSrc[4 * index + 0];
-    ptr_imgDest[3 * index + 1] = ptr_imgSrc[4 * index + 1];
-    ptr_imgDest[3 * index + 0] = ptr_imgSrc[4 * index + 2];
+    pCloudFrame[3 * index + 0] = 0;
+    pCloudFrame[3 * index + 1] = 0;
+    pCloudFrame[3 * index + 2] = 0;
 }
 
-void i3d::addPixel_CV(const int& index, uint8_t* ptr_img)
+void i3d::addPixel_CV(const int& index, std::vector<uint8_t>& imgFrame_CV,
+    const uint8_t* ptr_imgData)
 {
-    ptr_img[4 * index + 0] = 0; // blue
-    ptr_img[4 * index + 1] = 0; // green
-    ptr_img[4 * index + 2] = 0; // red
-    ptr_img[4 * index + 3] = 0; // alpha
+    imgFrame_CV[4 * index + 0] = ptr_imgData[4 * index + 0]; // blue
+    imgFrame_CV[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
+    imgFrame_CV[4 * index + 2] = ptr_imgData[4 * index + 2]; // red
+    imgFrame_CV[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void i3d::addPixel_GL(const int& index, uint8_t* ptr_img)
+void i3d::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL,
+    const uint8_t* ptr_imgData)
 {
-    ptr_img[3 * index + 0] = 0; // blue
-    ptr_img[3 * index + 1] = 0; // green
-    ptr_img[3 * index + 2] = 0; // red
+    imgFrame_GL[4 * index + 2] = ptr_imgData[4 * index + 0]; // blue
+    imgFrame_GL[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
+    imgFrame_GL[4 * index + 0] = ptr_imgData[4 * index + 2]; // red
+    imgFrame_GL[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-bool i3d::inSegment(
-    const int& index, const short* ptr_pcl, const Point& min, const Point& max)
+void i3d::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL,
+    const std::vector<uint8_t>& imgFrame)
 {
-    if (ptr_pcl[3 * index + 2] == 0) {
+    imgFrame_GL[4 * index + 0] = imgFrame[4 * index + 0]; // red
+    imgFrame_GL[4 * index + 1] = imgFrame[4 * index + 1]; // green
+    imgFrame_GL[4 * index + 2] = imgFrame[4 * index + 2]; // blue
+    imgFrame_GL[4 * index + 3] = imgFrame[4 * index + 3]; // alpha
+}
+
+void i3d::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL)
+{
+    imgFrame_GL[4 * index + 0] = 0; // red
+    imgFrame_GL[4 * index + 1] = 0; // green
+    imgFrame_GL[4 * index + 2] = 0; // blue
+    imgFrame_GL[4 * index + 3] = 0; // alpha
+}
+
+void i3d::addPixel_CV(const int& index, std::vector<uint8_t>& imgFrame_CV)
+{
+    imgFrame_CV[4 * index + 0] = 0; // red
+    imgFrame_CV[4 * index + 1] = 0; // green
+    imgFrame_CV[4 * index + 2] = 0; // blue
+    imgFrame_CV[4 * index + 3] = 0; // alpha
+}
+
+bool i3d::inSegment(const int& index, const std::vector<int16_t>& ptr_pclData,
+    const Point& minPoint, const Point& maxPoint)
+{
+    if (ptr_pclData[3 * index + 2] == 0) {
         return false;
     }
 
-    if (max.m_xyz[2] == SHRT_MAX || min.m_xyz[2] == SHRT_MIN) {
-        return false;
-    }
-
-    if ((int16_t)ptr_pcl[3 * index + 0] > max.m_xyz[0]
-        || (int16_t)ptr_pcl[3 * index + 0] < min.m_xyz[0]
-        || (int16_t)ptr_pcl[3 * index + 1] > max.m_xyz[1]
-        || (int16_t)ptr_pcl[3 * index + 1] < min.m_xyz[1]
-        || (int16_t)ptr_pcl[3 * index + 2] > max.m_xyz[2]
-        || (int16_t)ptr_pcl[3 * index + 2] < min.m_xyz[2]) {
+    if ((int16_t)ptr_pclData[3 * index + 0] > maxPoint.m_xyz[0]
+        || (int16_t)ptr_pclData[3 * index + 0] < minPoint.m_xyz[0]
+        || (int16_t)ptr_pclData[3 * index + 1] > maxPoint.m_xyz[1]
+        || (int16_t)ptr_pclData[3 * index + 1] < minPoint.m_xyz[1]
+        || (int16_t)ptr_pclData[3 * index + 2] > maxPoint.m_xyz[2]
+        || (int16_t)ptr_pclData[3 * index + 2] < minPoint.m_xyz[2]) {
         return false;
     }
     return true;
@@ -131,9 +165,10 @@ void i3d::stitch(const int& index, Point& point, int16_t* ptr_pcl,
     ptr_img_CV[4 * index + 2] = point.m_bgra[2]; // red
     ptr_img_CV[4 * index + 3] = point.m_bgra[3]; // alpha
 
-    ptr_img_GL[3 * index + 0] = point.m_rgb[0]; // blue
-    ptr_img_GL[3 * index + 1] = point.m_rgb[1]; // green
-    ptr_img_GL[3 * index + 2] = point.m_rgb[2]; // red
+    ptr_img_GL[4 * index + 0] = point.m_rgba[0]; // red
+    ptr_img_GL[4 * index + 1] = point.m_rgba[1]; // green
+    ptr_img_GL[4 * index + 2] = point.m_rgba[2]; // blue
+    ptr_img_GL[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
 /**
