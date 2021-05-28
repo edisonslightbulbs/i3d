@@ -238,6 +238,6 @@ public:
 
     void setPCloudSeg2x2Bin(const std::vector<Point>& points);
 
-    // std::shared_ptr<std::vector<Point>> getPCloudSeg2x2Bin();
+    std::shared_ptr<std::vector<Point>> getPCloudSeg2x2Bin();
 };
 #endif /* INTACT_H */
