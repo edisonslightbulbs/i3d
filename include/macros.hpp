@@ -143,7 +143,7 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 
 #define BUILD_POINTCLOUD 1
 #define FRAMES 1
-#define REGION 1
+#define PROPOSAL 1
 #define SEGMENT 1
 #define RENDER 1
 #define OR 0        // testing not ready for commit
