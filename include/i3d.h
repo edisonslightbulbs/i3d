@@ -1,5 +1,5 @@
-#ifndef INTACT_H
-#define INTACT_H
+#ifndef I3D_H
+#define I3D_H
 
 #include <memory>
 #include <mutex>
@@ -40,96 +40,87 @@ private:
 
     std::mutex m_boundaryMutex;
 
-    // std::mutex m_bkgdMutex;
     std::mutex m_flagMutex;
-    std::mutex m_clusterMutex;
+    std::mutex m_pCloudClusterMutex;
 
-    // point clouds
     std::shared_ptr<std::vector<Point>> sptr_pCloud = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloudSeg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloud2x2Bin = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloudSeg2x2Bin = nullptr;
-    // std::shared_ptr<std::vector<Point>> sptr_chromaBkgdPoints = nullptr;
 
-    // sensor resources
     k4a_float2_t* ptr_sensorTableData = nullptr;
-    std::shared_ptr<int16_t*> sptr_sensorPCloudData = nullptr;
     std::shared_ptr<uint8_t*> sptr_sensorImgData = nullptr;
+    std::shared_ptr<int16_t*> sptr_sensorPCloudData = nullptr;
     std::shared_ptr<uint16_t*> sptr_sensorDepthData = nullptr;
 
-    // core i3d handlers
-    std::pair<Point, Point> m_i3dBoundary {};
+    std::pair<Point, Point> m_boundary {};
     std::shared_ptr<std::vector<uint8_t>> sptr_imgFrame_CV = nullptr;
     std::shared_ptr<std::vector<uint8_t>> sptr_imgFrame_GL = nullptr;
     std::shared_ptr<std::vector<int16_t>> sptr_pCloudFrame = nullptr;
-    std::shared_ptr<std::vector<int16_t>> sptr_i3dPClSegFrame = nullptr;
-    std::shared_ptr<std::vector<uint8_t>> sptr_i3dImgSegFrame_GL = nullptr;
+    std::shared_ptr<std::vector<int16_t>> sptr_pCloudSegFrame = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_imgFrameSeg_GL = nullptr;
 
-    // std::shared_ptr<int16_t*> sptr_chromaBkgdPcl = nullptr;
-    // std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_GL = nullptr;
-    // std::shared_ptr<uint8_t*> sptr_chromaBkgdImg_CV = nullptr;
-
-    // typedef alias for clusters
     typedef std::pair<std::vector<Point>,
         std::vector<std::vector<unsigned long>>>
         t_clusters;
-    std::shared_ptr<t_clusters> sptr_clusters = nullptr;
+    std::shared_ptr<t_clusters> sptr_pCloudClusters = nullptr;
 
-    // semaphores for asynchronous threads
     std::shared_ptr<bool> sptr_run;
     std::shared_ptr<bool> sptr_stop;
-    std::shared_ptr<bool> sptr_pCloudReady;
     std::shared_ptr<bool> sptr_clustered;
-    std::shared_ptr<bool> sptr_boundarySet;
     std::shared_ptr<bool> sptr_segmented;
-    std::shared_ptr<bool> sptr_resourcesReady;
+    std::shared_ptr<bool> sptr_pCloudReady;
+    std::shared_ptr<bool> sptr_boundarySet;
     std::shared_ptr<bool> sptr_framesReady;
-    std::shared_ptr<bool> sptr_isBackgroundReady;
+    std::shared_ptr<bool> sptr_resourcesReady;
 
 public:
-    /**
-     * Intact
-     *   Constructs instance of the 3dintact API
+    /** i3d
+     *   Constructs instance of 3dintact
      */
     i3d();
 
-    /**
-     * segment
-     *   Segments context.
+    /** proposeRegion
+     *   Proposes a region/segment of an orthogonal
+     *   planar surface from a 3D point cloud.
      *
      * @param sptr_i3d
      *   Instance of API call.
      */
     static void proposeRegion(std::shared_ptr<i3d>& sptr_i3d);
 
-    /**
-     * render
-     *   Renders point cloud.
+    /** renderRegion
+     *   Renders segmented planar surface using OpenGL.
      *
      * @param sptr_i3d
      *   Instance of API call.
      */
     static void renderRegion(std::shared_ptr<i3d>& sptr_i3d);
 
+    /** buildPCloud
+     *   Builds a point cloud suited to i3d computations
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
     static void buildPCloud(std::shared_ptr<i3d>& sptr_i3d);
 
-    /**
-     * cluster
-     *   Clusters segmented context.
+    /** clusterRegion
+     *   Does spatial clustering of the extracted
+     *   planar surface.
      *
      * @param epsilon
      *   Epsilon parameter.
      * @param minPoints
      *   Number of epsilon-neighbourhood neighbours.
-     * @param sptr_intact
+     * @param sptr_i3d
      *   Instance of API call.
      */
     static void clusterRegion(const float& epsilon, const int& minPoints,
-        std::shared_ptr<i3d>& sptr_intact);
+        std::shared_ptr<i3d>& sptr_i3d);
 
-    /**
-     * findObjects
-     *   Detects objects in a given cv::Mat frame.
+    /** findRegionObjects
+     *   Uses YOLO .v5 to detect objects in segmented region.
      *
      * @param classnames
      *   Object class names.
@@ -141,30 +132,41 @@ public:
     static void findRegionObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<i3d>& sptr_i3d);
 
-    // ---------------------- asynchronous semaphores ---------------------//
+    /** frameRegion
+     *   Creates point cloud and image data frames
+     *   suited to i3d computations.
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void frameRegion(std::shared_ptr<i3d>& sptr_i3d);
+
+    /** segmentRegion
+     *   Segments planar surface from a 3D point cloud.
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
 
     void stop();
     bool isRun();
     bool isStop();
-    bool isPCloudReady();
     bool isSegmented();
-    bool isBoundarySet();
     bool framesReady();
     bool isClustered();
+    bool isBoundarySet();
+    bool isPCloudReady();
     bool isSensorReady();
-    bool isBackgroundReady();
 
     void raiseRunFlag();
     void raiseStopFlag();
-    void raisePCloudReadyFlag();
     void raiseSegmentedFlag();
-    void raiseBoundarySetFlag();
     void raiseClusteredFlag();
     void raiseSensorReadyFlag();
     void raiseFramesReadyFlag();
-    void raiseBackgroundReadyFlag();
-
-    // ---------------------- sensor resource handlers --------------------//
+    void raiseBoundarySetFlag();
+    void raisePCloudReadyFlag();
 
     int getDepthWidth();
     int getDepthHeight();
@@ -185,8 +187,6 @@ public:
 
     void setPCloud2x2Bin(const std::vector<Point>& points);
     std::shared_ptr<std::vector<Point>> getPCloud2x2Bin();
-
-    // ----------------- preprocessed resource handlers -------------------//
 
     void setImgFrame_CV(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgFrame_CV();
@@ -209,35 +209,14 @@ public:
     void setPCloud(const std::vector<Point>& points);
     std::shared_ptr<std::vector<Point>> getPCloud();
 
-    // ------------------------- operation handlers -----------------------//
-
-    void setClusters(const t_clusters& clusters);
-    std::shared_ptr<t_clusters> getClusters();
-
-    // void setChromaBkgdPcl(int16_t* ptr_pcl);
-    // std::shared_ptr<int16_t*> getChromaBkgdPcl();
-
-    // void setChromaBkgdPoints(const std::vector<Point>& points);
-    // std::shared_ptr<std::vector<Point>> getChromaBkgdPoints();
-
-    // void setChromaBkgdImg_GL(uint8_t* ptr_img);
-    // std::shared_ptr<uint8_t*> getChromaBkgdImg_GL();
-
-    // void setChromaBkgdImg_CV(uint8_t* ptr_img);
-    // std::shared_ptr<uint8_t*> getChromaBkgdImg_CV();
-
-    static void frameRegion(std::shared_ptr<i3d>& sptr_i3d);
-
-    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
-
-    static void chromakey(std::shared_ptr<i3d>& sptr_intact);
-
     void setPCloudSeg(const std::vector<Point>& points);
-
     std::shared_ptr<std::vector<Point>> getPCloudSeg();
 
     void setPCloudSeg2x2Bin(const std::vector<Point>& points);
+    __attribute__((unused)) std::shared_ptr<std::vector<Point>>
+    getPCloudSeg2x2Bin();
 
-    std::shared_ptr<std::vector<Point>> getPCloudSeg2x2Bin();
+    void setPCloudClusters(const t_clusters& clusters);
+    __attribute__((unused)) std::shared_ptr<t_clusters> getPCloudClusters();
 };
-#endif /* INTACT_H */
+#endif /* I3D_H */
