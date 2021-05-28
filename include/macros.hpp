@@ -141,14 +141,14 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 #define STOP_TIMER(str)
 #endif
 
-#define BUILD_POINTCLOUD 1 // tested ready for commit
-#define FRAMES 1           // testing not ready for commit
-#define REGION 1           // tested ready for commit
-#define SEGMENT 1          // testing not ready for commit
-#define RENDER 1           // testing not ready for commit
-#define OR 0               // testing not ready for commit
-#define CHROMAKEY 0        // testing not ready for commit
-#define CLUSTER 0          // testing not ready for commit
+#define BUILD_POINTCLOUD 1
+#define FRAMES 1
+#define REGION 1
+#define SEGMENT 1
+#define RENDER 1
+#define OR 0        // testing not ready for commit
+#define CHROMAKEY 0 // testing not ready for commit
+#define CLUSTER 0   // testing not ready for commit
 
 // todo: introduce macro configuration logic
 
