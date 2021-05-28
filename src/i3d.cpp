@@ -32,8 +32,6 @@ i3d::i3d()
     sptr_isBackgroundReady = std::make_shared<bool>(false);
 }
 
-// ---------------------- asynchronous semaphores ---------------------//
-
 bool i3d::isRun()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
@@ -148,8 +146,6 @@ void i3d::stop()
     *sptr_run = false;
 }
 
-// ---------------------- sensor resource handlers --------------------//
-
 void i3d::setDepthHeight(const int& height)
 {
     std::lock_guard<std::mutex> lck(m_depthDimensions);
@@ -192,11 +188,12 @@ void i3d::setPCloudSeg2x2Bin(const std::vector<Point>& points)
     sptr_pCloudSeg2x2Bin = std::make_shared<std::vector<Point>>(points);
 }
 
-// std::shared_ptr<std::vector<Point>> Intact::getPCloudSeg2x2Bin()
-// {
-//     std::lock_guard<std::mutex> lck(m_pCloudSeg2x2BinMutex);
-//     return sptr_pCloudSeg2x2Bin;
-// }
+__attribute__((unused)) std::shared_ptr<std::vector<Point>>
+i3d::getPCloudSeg2x2Bin()
+{
+    std::lock_guard<std::mutex> lck(m_pCloudSeg2x2BinMutex);
+    return sptr_pCloudSeg2x2Bin;
+}
 
 void i3d::setSensorImgData(uint8_t* ptr_imgData)
 {
@@ -244,8 +241,6 @@ k4a_float2_t* i3d::getSensorTableData()
     std::lock_guard<std::mutex> lck(m_sensorTableDataMutex);
     return ptr_sensorTableData;
 }
-
-// ----------------- preprocessed resource handlers -------------------//
 
 void i3d::setPCloud(const std::vector<Point>& points)
 {
@@ -343,8 +338,6 @@ std::shared_ptr<std::vector<uint8_t>> i3d::getImgFrame_CV()
     return sptr_imgFrame_CV;
 }
 
-// ------------------------- operation handlers -----------------------//
-
 void i3d::setClusters(const t_clusters& clusters)
 {
     std::lock_guard<std::mutex> lck(m_clusterMutex);
@@ -413,17 +406,12 @@ void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
     int w = sptr_i3d->getDepthWidth();
     int h = sptr_i3d->getDepthHeight();
 
-    auto* ptr_depthData = (uint16_t*)malloc(sizeof(uint16_t) * w * h);
-    auto* ptr_tableData = (k4a_float2_t*)malloc(sizeof(k4a_float2_t) * w * h);
-
     std::vector<Point> pCloud(w * h);
     while (sptr_i3d->isRun()) {
+
         START_TIMER
-        // get depth and xy table data
-        std::memcpy(ptr_depthData, *sptr_i3d->getSensorDepthData(),
-            sizeof(int16_t) * w * h);
-        std::memcpy(ptr_tableData, sptr_i3d->getSensorTableData(),
-            sizeof(k4a_float2_t) * w * h);
+        auto* ptr_depthData = *sptr_i3d->getSensorDepthData();
+        auto* ptr_tableData = sptr_i3d->getSensorTableData();
 
         int index = 0;
         for (int i = 0; i < w * h; i++) {
@@ -440,8 +428,6 @@ void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
         std::vector<Point> optimizedPCloud(
             pCloud.begin(), pCloud.begin() + index);
 
-        // PRINT(optimizedPCloud)
-        // STOP
         sptr_i3d->setPCloud2x2Bin(optimizedPCloud);
         RAISE_POINTCLOUD_READY_FLAG
         STOP_TIMER(" point cloud builder thread: ")
@@ -498,7 +484,7 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
 
 void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
-#if REGION == 1
+#if PROPOSAL == 1
     SLEEP_UNTIL_POINTCLOUD_READY
     START
     while (sptr_i3d->isRun()) {
