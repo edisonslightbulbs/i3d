@@ -10,7 +10,6 @@
 #include "kinect.h"
 #include "macros.hpp"
 #include "region.h"
-#include "svd.h"
 #include "viewer.h"
 #include "yolov5.h"
 
@@ -19,7 +18,7 @@ i3d::i3d()
     Point i3dMaxBound(SHRT_MAX, SHRT_MAX, SHRT_MAX);
     Point i3dMinBound(SHRT_MIN, SHRT_MIN, SHRT_MIN);
 
-    m_i3dBoundary = { i3dMaxBound, i3dMinBound };
+    m_boundary = { i3dMaxBound, i3dMinBound };
 
     sptr_run = std::make_shared<bool>(false);
     sptr_stop = std::make_shared<bool>(false);
@@ -29,7 +28,6 @@ i3d::i3d()
     sptr_framesReady = std::make_shared<bool>(false);
     sptr_pCloudReady = std::make_shared<bool>(false);
     sptr_resourcesReady = std::make_shared<bool>(false);
-    sptr_isBackgroundReady = std::make_shared<bool>(false);
 }
 
 bool i3d::isRun()
@@ -114,18 +112,6 @@ void i3d::raiseClusteredFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_clustered = true;
-}
-
-bool i3d::isBackgroundReady()
-{
-    std::lock_guard<std::mutex> lck(m_flagMutex);
-    return *sptr_isBackgroundReady;
-}
-
-void i3d::raiseBackgroundReadyFlag()
-{
-    std::lock_guard<std::mutex> lck(m_flagMutex);
-    *sptr_isBackgroundReady = true;
 }
 
 bool i3d::isStop()
@@ -281,13 +267,13 @@ std::shared_ptr<std::vector<uint8_t>> i3d::getImgFrame_GL()
 void i3d::setI3dBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_boundaryMutex);
-    m_i3dBoundary = boundary;
+    m_boundary = boundary;
 }
 
 std::pair<Point, Point> i3d::getBoundary()
 {
     std::lock_guard<std::mutex> lck(m_boundaryMutex);
-    return m_i3dBoundary;
+    return m_boundary;
 }
 
 void i3d::setPCloudFrame(const std::vector<int16_t>& frame)
@@ -305,25 +291,25 @@ std::shared_ptr<std::vector<int16_t>> i3d::getPCloudFrame()
 void i3d::setI3dPCloudSegFrame(const std::vector<int16_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_pCloudSegFrameMutex);
-    sptr_i3dPClSegFrame = std::make_shared<std::vector<int16_t>>(frame);
+    sptr_pCloudSegFrame = std::make_shared<std::vector<int16_t>>(frame);
 }
 
 std::shared_ptr<std::vector<int16_t>> i3d::getPCloudSegFrame()
 {
     std::lock_guard<std::mutex> lck(m_pCloudSegFrameMutex);
-    return sptr_i3dPClSegFrame;
+    return sptr_pCloudSegFrame;
 }
 
 void i3d::setI3dImgSegFrame_GL(const std::vector<uint8_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_imgSegFrameMutex_GL);
-    sptr_i3dImgSegFrame_GL = std::make_shared<std::vector<uint8_t>>(frame);
+    sptr_imgFrameSeg_GL = std::make_shared<std::vector<uint8_t>>(frame);
 }
 
 std::shared_ptr<std::vector<uint8_t>> i3d::getImgSegFrame_GL()
 {
     std::lock_guard<std::mutex> lck(m_imgSegFrameMutex_GL);
-    return sptr_i3dImgSegFrame_GL;
+    return sptr_imgFrameSeg_GL;
 }
 
 void i3d::setImgFrame_CV(const std::vector<uint8_t>& frame)
@@ -338,65 +324,18 @@ std::shared_ptr<std::vector<uint8_t>> i3d::getImgFrame_CV()
     return sptr_imgFrame_CV;
 }
 
-void i3d::setClusters(const t_clusters& clusters)
+void i3d::setPCloudClusters(const t_clusters& clusters)
 {
-    std::lock_guard<std::mutex> lck(m_clusterMutex);
-    sptr_clusters = std::make_shared<t_clusters>(clusters);
+    std::lock_guard<std::mutex> lck(m_pCloudClusterMutex);
+    sptr_pCloudClusters = std::make_shared<t_clusters>(clusters);
 }
 
-std::shared_ptr<i3d::t_clusters> i3d::getClusters()
+__attribute__((unused)) std::shared_ptr<i3d::t_clusters>
+i3d::getPCloudClusters()
 {
-    std::lock_guard<std::mutex> lck(m_clusterMutex);
-    return sptr_clusters;
+    std::lock_guard<std::mutex> lck(m_pCloudClusterMutex);
+    return sptr_pCloudClusters;
 }
-
-// void Intact::setChromaBkgdPoints(const std::vector<Point>& points)
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     *sptr_chromaBkgdPoints = points;
-// }
-//
-// std::shared_ptr<std::vector<Point>> Intact::getChromaBkgdPoints()
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     return sptr_chromaBkgdPoints;
-// }
-//
-// void Intact::setChromaBkgdPcl(int16_t* ptr_pcl)
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     sptr_chromaBkgdPcl = std::make_shared<int16_t*>(ptr_pcl);
-// }
-//
-// std::shared_ptr<int16_t*> Intact::getChromaBkgdPcl()
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     return sptr_chromaBkgdPcl;
-// }
-//
-// void Intact::setChromaBkgdImg_GL(uint8_t* ptr_img)
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     sptr_chromaBkgdImg_GL = std::make_shared<uint8_t*>(ptr_img);
-// }
-//
-// std::shared_ptr<uint8_t*> Intact::getChromaBkgdImg_GL()
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     return sptr_chromaBkgdImg_GL;
-// }
-//
-// void Intact::setChromaBkgdImg_CV(uint8_t* ptr_img)
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     sptr_chromaBkgdImg_CV = std::make_shared<uint8_t*>(ptr_img);
-// }
-//
-// std::shared_ptr<uint8_t*> Intact::getChromaBkgdImg_CV()
-// {
-//     std::lock_guard<std::mutex> lck(m_bkgdMutex);
-//     return sptr_chromaBkgdImg_CV;
-// }
 
 void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
 {
@@ -406,12 +345,15 @@ void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
     int w = sptr_i3d->getDepthWidth();
     int h = sptr_i3d->getDepthHeight();
 
+    uint16_t* ptr_depthData;
+    k4a_float2_t* ptr_tableData;
+
     std::vector<Point> pCloud(w * h);
     while (sptr_i3d->isRun()) {
 
         START_TIMER
-        auto* ptr_depthData = *sptr_i3d->getSensorDepthData();
-        auto* ptr_tableData = sptr_i3d->getSensorTableData();
+        ptr_depthData = *sptr_i3d->getSensorDepthData();
+        ptr_tableData = sptr_i3d->getSensorTableData();
 
         int index = 0;
         for (int i = 0; i < w * h; i++) {
@@ -448,10 +390,13 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
     std::vector<uint8_t> imgFrame_GL(w * h * 4);
     std::vector<uint8_t> imgFrame_CV(w * h * 4);
 
+    uint8_t* ptr_sensorImgData;
+    int16_t* ptr_sensorPCloudData;
+
     while (sptr_i3d->isRun()) {
         START_TIMER
-        auto* ptr_sensorPCloudData = *sptr_i3d->getSensorPCloudData();
-        auto* ptr_sensorImgData = *sptr_i3d->getSensorImgData();
+        ptr_sensorPCloudData = *sptr_i3d->getSensorPCloudData();
+        ptr_sensorImgData = *sptr_i3d->getSensorImgData();
 
         for (int i = 0; i < w * h; i++) {
             Point point;
@@ -534,14 +479,14 @@ void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
 #endif
 }
 
-void i3d::clusterRegion(const float& epsilon, const int& minPoints,
-    std::shared_ptr<i3d>& sptr_intact)
+void i3d::clusterRegion(
+    const float& epsilon, const int& minPoints, std::shared_ptr<i3d>& sptr_i3d)
 {
 #if CLUSTER == 1
-    WHILE_INTACT_READY
+    SLEEP_UNTIL_SEGMENT_READY
     START
-    while (sptr_intact->isRun()) {
-        std::vector<Point> points = *sptr_intact->getSegmentPoints();
+    while (sptr_i3d->isRun()) {
+        std::vector<Point> points = *sptr_i3d->getPCloudSeg();
 
         // dbscan using kd-tree: returns clustered indexes
         auto clusters = dbscan::cluster(points, epsilon, minPoints);
@@ -552,9 +497,8 @@ void i3d::clusterRegion(const float& epsilon, const int& minPoints,
                 const std::vector<unsigned long>& b) {
                 return a.size() > b.size();
             });
-
-        sptr_intact->setClusters({ points, clusters });
-        CLUSTERS_READY
+        sptr_i3d->setPCloudClusters({ points, clusters });
+        RAISE_CLUSTERS_READY_FLAG
     }
 #endif
 }
@@ -573,7 +517,6 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
 #if OR == 1
     // SLEEP_UNTIL_FRAMES_READY
     SLEEP_UNTIL_FRAMES_READY
-    int mode = 0;
     uint8_t* ptr_img;
 
     while (sptr_i3d->isRun()) {
@@ -584,17 +527,6 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
         // get resources
         int w = sptr_i3d->getDepthWidth();
         int h = sptr_i3d->getDepthHeight();
-
-        // if (cv::waitKey(1) == 99) {
-        //     if (mode == 0) {
-        //         ptr_img = *sptr_i3d->getSensorImgData();
-        //     } else if ( mode == 1) {
-        //        ptr_img = sptr_i3d->getImgFrame_CV()->data();
-        //     } else if (mode == 2){
-        //         mode = 0;
-        //     }
-        //     mode++;
-        // }
 
         // ptr_img = *sptr_i3d->getSensorImgData();
         ptr_img = sptr_i3d->getImgFrame_CV()->data();
@@ -653,120 +585,6 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
         if (cv::waitKey(1) == 27) {
             STOP
         }
-    }
-#endif
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//                       example/possible extensions
-///////////////////////////////////////////////////////////////////////////////
-
-void i3d::chromakey(std::shared_ptr<i3d>& sptr_intact)
-{
-#if CHROMAKEY == 1
-
-    WHILE_CLUSTERS_READY
-    START
-    while (sptr_intact->isRun()) {
-
-        // get un-edited image
-        std::vector<Point> frame = *sptr_intact->getRefinedPoints();
-
-        // get clusters
-        auto clusters = sptr_intact->getClusters();
-        auto indexClusters = clusters->second;
-        std::vector<Point> points = clusters->first;
-
-        // define chromakey color for tabletop surface
-        uint8_t rgb[3] = { chromagreen[0], chromagreen[1], chromagreen[2] };
-        uint8_t bgra[4] = { chromagreen[2], chromagreen[1], chromagreen[0], 0 };
-
-        ///////////////////////////////////////////////////
-        /////////////// beta testing //////////////////////
-        ///////////////////////////////////////////////////
-        // cast clusters of indexed to clusters of points
-        std::vector<std::vector<Point>> pointClusters;
-        for (const auto& cluster : indexClusters) {
-            std::vector<Point> heap;
-            for (const auto& index : cluster) {
-                heap.emplace_back(points[index]);
-            }
-            pointClusters.emplace_back(heap);
-        }
-
-        // config flags for svd computation
-        int flag = Eigen::ComputeThinU | Eigen::ComputeThinV;
-
-        // heap norms for each cluster
-        std::vector<Eigen::Vector3d> normals;
-        for (const auto& cluster : pointClusters) {
-            SVD usv(cluster, flag);
-            normals.emplace_back(usv.getV3Normal());
-        }
-
-        const float ARGMIN = 0.4;
-        // evaluate coplanarity between clusters
-        int clusterIndex = 0;
-        std::vector<Point> tabletop = pointClusters[0];
-        for (const auto& normal : normals) {
-            double a = normals[0].dot(normal);
-            double b = normals[0].norm() * normal.norm();
-            double solution = std::acos(a / b);
-
-            if (!std::isnan(solution) && solution < ARGMIN && solution > -ARGMIN
-                && pointClusters[clusterIndex].size() < 25) {
-                tabletop.insert(tabletop.end(),
-                    pointClusters[clusterIndex].begin(),
-                    pointClusters[clusterIndex].end());
-            }
-            clusterIndex++;
-        }
-
-        // find the upper and lower z limits
-        std::vector<float> zMeasures;
-        for (const auto& point : pointClusters[0]) {
-            zMeasures.emplace_back(point.m_xyz[2]);
-        }
-        int16_t maxH = *std::max_element(zMeasures.begin(), zMeasures.end());
-        int16_t minH = *std::min_element(zMeasures.begin(), zMeasures.end());
-
-        // use limits to refine tabletop points
-        std::vector<Point> bkgd; //
-        for (const auto& point : tabletop) {
-            if (point.m_xyz[2] > maxH || point.m_xyz[2] < minH) {
-                continue;
-            }
-            bkgd.emplace_back(point);
-        }
-        ///////////////////////////////////////////////////
-        /////////////// beta testing //////////////////////
-        ///////////////////////////////////////////////////
-
-        // use clustered indexes to chromakey a selected cluster
-        for (const auto& point : bkgd) {
-            int id = point.m_id;
-            frame[id].setPixel_GL(rgb);
-            frame[id].setPixel_CV(bgra);
-        }
-
-        // sizes
-        const int numPoints = sptr_intact->m_numPoints;
-        const uint32_t pclsize = numPoints * 3;
-        const uint32_t imgsize = numPoints * 4;
-
-        int16_t pclBuf[pclsize];
-        uint8_t imgBuf_GL[pclsize];
-        uint8_t imgBuf_CV[imgsize];
-
-        // stitch images from processed point cloud
-        for (int i = 0; i < numPoints; i++) {
-            i3d::stitch(i, frame[i], pclBuf, imgBuf_GL, imgBuf_CV);
-        }
-        sptr_intact->setChromaBkgdPoints(frame);
-        sptr_intact->setChromaBkgdPcl(pclBuf);
-        sptr_intact->setChromaBkgdImg_GL(imgBuf_GL);
-        sptr_intact->setChromaBkgdImg_CV(imgBuf_CV);
-        CHROMABACKGROUND_READY
     }
 #endif
 }
