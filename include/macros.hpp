@@ -37,6 +37,7 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
     while (!sptr_i3d->isSensorReady()) {                                       \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
+
 #define RAISE_SENSOR_RESOURCES_READY_FLAG                                      \
     if (init) {                                                                \
         init = false;                                                          \
@@ -48,6 +49,7 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
     while (!sptr_i3d->isPCloudReady()) {                                       \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
+
 #define RAISE_POINTCLOUD_READY_FLAG                                            \
     if (init) {                                                                \
         init = false;                                                          \
@@ -59,6 +61,7 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
     while (!sptr_i3d->framesReady()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
+
 #define RAISE_FRAMES_READY_FLAG                                                \
     if (init) {                                                                \
         init = false;                                                          \
@@ -70,6 +73,7 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
     while (!sptr_i3d->isBoundarySet()) {                                       \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
+
 #define RAISE_BOUNDARY_SET_FLAG                                                \
     if (init) {                                                                \
         init = false;                                                          \
@@ -77,10 +81,11 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
         sptr_i3d->raiseBoundarySetFlag();                                      \
     }
 
-#define SLEEP_UNTIL_SEGMENTATION_DONE                                          \
+#define SLEEP_UNTIL_SEGMENT_READY                                              \
     while (!sptr_i3d->isSegmented()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
+
 #define RAISE_SEGMENTATION_DONE_FLAG                                           \
     if (init) {                                                                \
         init = false;                                                          \
@@ -88,41 +93,20 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
         sptr_i3d->raiseSegmentedFlag();                                        \
     }
 
-#define CLUSTERS_READY                                                         \
+#define SLEEP_UNTIL_CLUSTERS_READY                                             \
+    while (!sptr_i3d->isClustered()) {                                         \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define RAISE_CLUSTERS_READY_FLAG                                              \
     if (init) {                                                                \
         init = false;                                                          \
         sptr_i3d->raiseClusteredFlag();                                        \
     }
 
-#define CHROMABACKGROUND_READY                                                 \
-    if (init) {                                                                \
-        init = false;                                                          \
-        sptr_i3d->raiseBackgroundReadyFlag();                                  \
-    }
-
-#define POLL_EXIT_STATUS                                                       \
+#define EXIT_CALLBACK                                                          \
     if (sptr_i3d->isStop()) {                                                  \
         sptr_i3d->stop();                                                      \
-    }
-
-#define WHILE_SEGMENT_READY                                                    \
-    while (!sptr_i3d->isSegmented()) {                                         \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
-    }
-
-#define SLEEP_UNTIL_SEGMENT_READY                                              \
-    while (!sptr_i3d->isSegmented()) {                                         \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
-    }
-
-#define WHILE_CLUSTERS_READY                                                   \
-    while (!sptr_i3d->isClustered()) {                                         \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
-    }
-
-#define WHILE_CHROMABACKGROUND_READY                                           \
-    while (!sptr_i3d->isBackgroundReady()) {                                   \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
 #define STOP sptr_i3d->raiseStopFlag();
@@ -146,9 +130,8 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 #define PROPOSAL 1
 #define SEGMENT 1
 #define RENDER 1
-#define OR 0        // testing not ready for commit
-#define CHROMAKEY 0 // testing not ready for commit
-#define CLUSTER 0   // testing not ready for commit
+#define OR 0
+#define CLUSTER 1 // testing not ready for commit
 
 // todo: introduce macro configuration logic
 
