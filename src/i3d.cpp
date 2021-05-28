@@ -442,8 +442,6 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
     START
     int w = sptr_i3d->getDepthWidth();
     int h = sptr_i3d->getDepthHeight();
-    auto* ptr_sensorPCloudData = (int16_t*)malloc(sizeof(int16_t) * w * h * 3);
-    auto* ptr_sensorImgData = (uint8_t*)malloc(sizeof(uint8_t) * w * h * 4);
 
     std::vector<Point> pCloud(w * h);
     std::vector<int16_t> pCloudFrame(w * h * 3);
@@ -452,11 +450,8 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
 
     while (sptr_i3d->isRun()) {
         START_TIMER
-        // get point cloud data and image
-        std::memcpy(ptr_sensorPCloudData, *sptr_i3d->getSensorPCloudData(),
-            sizeof(int16_t) * w * h * 3);
-        std::memcpy(ptr_sensorImgData, *sptr_i3d->getSensorImgData(),
-            sizeof(uint8_t) * w * h * 4);
+        auto* ptr_sensorPCloudData = *sptr_i3d->getSensorPCloudData();
+        auto* ptr_sensorImgData = *sptr_i3d->getSensorImgData();
 
         for (int i = 0; i < w * h; i++) {
             Point point;
@@ -567,7 +562,6 @@ void i3d::clusterRegion(const float& epsilon, const int& minPoints,
 void i3d::renderRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
 #if RENDER == 1
-    LOG(INFO) << "-- rendering";
     SLEEP_UNTIL_SEGMENT_READY
     viewer::draw(sptr_i3d);
 #endif
@@ -577,7 +571,11 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<i3d>& sptr_i3d)
 {
 #if OR == 1
+    // SLEEP_UNTIL_FRAMES_READY
     SLEEP_UNTIL_FRAMES_READY
+    int mode = 0;
+    uint8_t* ptr_img;
+
     while (sptr_i3d->isRun()) {
 
         // start frame rate clock
@@ -587,10 +585,19 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
         int w = sptr_i3d->getDepthWidth();
         int h = sptr_i3d->getDepthHeight();
 
-        // todo: introduce key press control mirroring openGL implementation
-        uint8_t* ptr_img = *sptr_i3d->getSensorImgData_CV();
-        // uint8_t* ptr_img = *sptr_i3d->getI3dRawImgData_CV();
-        // uint8_t* ptr_img = *sptr_intact->getChromaBkgdImg_CV();
+        // if (cv::waitKey(1) == 99) {
+        //     if (mode == 0) {
+        //         ptr_img = *sptr_i3d->getSensorImgData();
+        //     } else if ( mode == 1) {
+        //        ptr_img = sptr_i3d->getImgFrame_CV()->data();
+        //     } else if (mode == 2){
+        //         mode = 0;
+        //     }
+        //     mode++;
+        // }
+
+        // ptr_img = *sptr_i3d->getSensorImgData();
+        ptr_img = sptr_i3d->getImgFrame_CV()->data();
 
         // create image frame
         cv::Mat img;
@@ -644,8 +651,7 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
 
         cv::imshow("", frame);
         if (cv::waitKey(1) == 27) {
-            sptr_i3d->raiseStopFlag();
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            STOP
         }
     }
 #endif
