@@ -1,0 +1,394 @@
+### :mortar_board: :mortar_board: :mortar_board: :mortar_board:
+#### an API for extracting surfaces and surface objects from images and 3 point clouds
+
+*   the interface
+
+```cpp
+
+#include <memory>
+#include <mutex>
+#include <torch/script.h>
+#include <vector>
+
+#include "point.h"
+
+class i3d {
+
+public:
+    int m_depthWidth {};
+    int m_depthHeight {};
+
+private:
+    // hierarchical mutual exclusion
+    std::mutex m_depthDimensions;
+
+    std::mutex m_sensorTableDataMutex;
+    std::mutex m_sensorImgDataMutex;
+    std::mutex m_sensorDepthDataMutex;
+    std::mutex m_sensorPCloudDataMutex;
+
+    std::mutex m_pCloudMutex;
+    std::mutex m_pCloudSegMutex;
+
+    std::mutex m_pCloudFrameMutex;
+    std::mutex m_pCloudSegFrameMutex;
+
+    std::mutex m_pCloud2x2BinMutex;
+    std::mutex m_pCloudSeg2x2BinMutex;
+
+    std::mutex m_imgFrameMutex_GL;
+
+    std::mutex m_imgSegFrameMutex_GL;
+    std::mutex m_imgSegFrameMutex_CV;
+
+    std::mutex m_boundaryMutex;
+
+    std::mutex m_flagMutex;
+    std::mutex m_pCloudClusterMutex;
+
+    std::shared_ptr<std::vector<Point>> sptr_pCloud = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_pCloudSeg = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_pCloud2x2Bin = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_pCloudSeg2x2Bin = nullptr;
+
+    k4a_float2_t* ptr_sensorTableData = nullptr;
+    std::shared_ptr<uint8_t*> sptr_sensorImgData = nullptr;
+    std::shared_ptr<int16_t*> sptr_sensorPCloudData = nullptr;
+    std::shared_ptr<uint16_t*> sptr_sensorDepthData = nullptr;
+
+    std::pair<Point, Point> m_boundary {};
+    std::shared_ptr<std::vector<uint8_t>> sptr_imgFrame_CV = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_imgFrame_GL = nullptr;
+    std::shared_ptr<std::vector<int16_t>> sptr_pCloudFrame = nullptr;
+    std::shared_ptr<std::vector<int16_t>> sptr_pCloudSegFrame = nullptr;
+    std::shared_ptr<std::vector<uint8_t>> sptr_imgFrameSeg_GL = nullptr;
+
+    typedef std::pair<std::vector<Point>,
+        std::vector<std::vector<unsigned long>>>
+        t_clusters;
+    std::shared_ptr<t_clusters> sptr_pCloudClusters = nullptr;
+
+    std::shared_ptr<bool> sptr_run;
+    std::shared_ptr<bool> sptr_stop;
+    std::shared_ptr<bool> sptr_clustered;
+    std::shared_ptr<bool> sptr_segmented;
+    std::shared_ptr<bool> sptr_pCloudReady;
+    std::shared_ptr<bool> sptr_boundarySet;
+    std::shared_ptr<bool> sptr_framesReady;
+    std::shared_ptr<bool> sptr_resourcesReady;
+
+public:
+    /** i3d
+     *   Constructs instance of 3dintact
+     */
+    i3d();
+
+    /** proposeRegion
+     *   Proposes a region/segment of an orthogonal
+     *   planar surface from a 3D point cloud.
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void proposeRegion(std::shared_ptr<i3d>& sptr_i3d);
+
+    /** renderRegion
+     *   Renders segmented planar surface using OpenGL.
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void renderRegion(std::shared_ptr<i3d>& sptr_i3d);
+
+    /** buildPCloud
+     *   Builds a point cloud suited to i3d computations
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void buildPCloud(std::shared_ptr<i3d>& sptr_i3d);
+
+    /** clusterRegion
+     *   Does spatial clustering of the extracted
+     *   planar surface.
+     *
+     * @param epsilon
+     *   Epsilon parameter.
+     * @param minPoints
+     *   Number of epsilon-neighbourhood neighbours.
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void clusterRegion(const float& epsilon, const int& minPoints,
+        std::shared_ptr<i3d>& sptr_i3d);
+
+    /** findRegionObjects
+     *   Uses YOLO .v5 to detect objects in segmented region.
+     *
+     * @param classnames
+     *   Object class names.
+     * @param module
+     *   torch module
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void findRegionObjects(std::vector<std::string>& classnames,
+        torch::jit::Module& module, std::shared_ptr<i3d>& sptr_i3d);
+
+    /** frameRegion
+     *   Creates point cloud and image data frames
+     *   suited to i3d computations.
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void frameRegion(std::shared_ptr<i3d>& sptr_i3d);
+
+    /** segmentRegion
+     *   Segments planar surface from a 3D point cloud.
+     *
+     * @param sptr_i3d
+     *   Instance of API call.
+     */
+    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
+
+    void stop();
+    bool isRun();
+    bool isStop();
+    bool isSegmented();
+    bool framesReady();
+    bool isClustered();
+    bool isBoundarySet();
+    bool isPCloudReady();
+    bool isSensorReady();
+
+    void raiseRunFlag();
+    void raiseStopFlag();
+    void raiseSegmentedFlag();
+    void raiseClusteredFlag();
+    void raiseSensorReadyFlag();
+    void raiseFramesReadyFlag();
+    void raiseBoundarySetFlag();
+    void raisePCloudReadyFlag();
+
+    int getDepthWidth();
+    int getDepthHeight();
+    void setDepthWidth(const int& width);
+    void setDepthHeight(const int& height);
+
+    void setSensorPCloudData(int16_t* ptr_pclData);
+    std::shared_ptr<int16_t*> getSensorPCloudData();
+
+    void setSensorTableData(k4a_float2_t* ptr_table);
+    k4a_float2_t* getSensorTableData();
+
+    void setSensorImgData(uint8_t* ptr_imgData);
+    std::shared_ptr<uint8_t*> getSensorImgData();
+
+    void setSensorDepthData(uint16_t* ptr_depth);
+    std::shared_ptr<uint16_t*> getSensorDepthData();
+
+    void setPCloud2x2Bin(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getPCloud2x2Bin();
+
+    void setImgFrame_CV(const std::vector<uint8_t>& frame);
+    std::shared_ptr<std::vector<uint8_t>> getImgFrame_CV();
+
+    void setPCloudFrame(const std::vector<int16_t>& frame);
+    std::shared_ptr<std::vector<int16_t>> getPCloudFrame();
+
+    void setImgFrame_GL(const std::vector<uint8_t>& frame);
+    std::shared_ptr<std::vector<uint8_t>> getImgFrame_GL();
+
+    void setI3dPCloudSegFrame(const std::vector<int16_t>& frame);
+    std::shared_ptr<std::vector<int16_t>> getPCloudSegFrame();
+
+    void setI3dImgSegFrame_GL(const std::vector<uint8_t>& frame);
+    std::shared_ptr<std::vector<uint8_t>> getImgSegFrame_GL();
+
+    void setI3dBoundary(std::pair<Point, Point>& boundary);
+    std::pair<Point, Point> getBoundary();
+
+    void setPCloud(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getPCloud();
+
+    void setPCloudSeg(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getPCloudSeg();
+
+    void setPCloudSeg2x2Bin(const std::vector<Point>& points);
+    __attribute__((unused)) std::shared_ptr<std::vector<Point>>
+    getPCloudSeg2x2Bin();
+
+    void setPCloudClusters(const t_clusters& clusters);
+    __attribute__((unused)) std::shared_ptr<t_clusters> getPCloudClusters();
+};
+
+```
+
+* usage example
+
+```cpp
+#include <chrono>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <torch/script.h>
+
+#include "helpers.h"
+#include "i3d.h"
+#include "io.h"
+#include "kinect.h"
+#include "macros.hpp"
+
+std::mutex m;
+
+void render(std::shared_ptr<i3d>& sptr_i3d)
+{
+    sptr_i3d->renderRegion(sptr_i3d);
+}
+
+void detect(std::shared_ptr<i3d>& sptr_intact)
+{
+    std::vector<std::string> classNames;
+    torch::jit::script::Module module;
+    utils::configTorch(classNames, module);
+    sptr_intact->findRegionObjects(classNames, module, sptr_intact);
+}
+
+void findRegion(std::shared_ptr<i3d>& sptr_i3d)
+{
+    sptr_i3d->proposeRegion(sptr_i3d);
+}
+
+void segment(std::shared_ptr<i3d>& sptr_i3d)
+{
+    sptr_i3d->segmentRegion(sptr_i3d);
+}
+
+void frame(std::shared_ptr<i3d>& sptr_i3d) { sptr_i3d->frameRegion(sptr_i3d); }
+
+void cluster(std::shared_ptr<i3d>& sptr_i3d)
+{
+    int minPoints = 4;
+    const float epsilon = 3.170;
+    sptr_i3d->clusterRegion(epsilon, minPoints, sptr_i3d);
+}
+
+void buildPcl(std::shared_ptr<i3d>& sptr_i3d)
+{
+    sptr_i3d->buildPCloud(sptr_i3d);
+}
+
+void k4aCapture(
+    std::shared_ptr<Kinect>& sptr_kinect, std::shared_ptr<i3d>& sptr_i3d)
+{
+    START
+    sptr_kinect->capture();
+    sptr_kinect->depthCapture();
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_depth);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_depth);
+
+    while (sptr_i3d->isRun()) {
+        START_TIMER
+        sptr_kinect->capture();
+        sptr_kinect->depthCapture();
+        sptr_kinect->pclCapture();
+        sptr_kinect->imgCapture();
+        sptr_kinect->c2dCapture();
+        sptr_kinect->transform(RGB_TO_DEPTH);
+
+        auto* ptr_k4aImgData = k4a_image_get_buffer(sptr_kinect->m_c2d);
+        auto* ptr_k4aPCloudData
+            = (int16_t*)(void*)k4a_image_get_buffer(sptr_kinect->m_pcl);
+        auto* ptr_k4aDepthData
+            = (uint16_t*)(void*)k4a_image_get_buffer(sptr_kinect->m_depth);
+        auto* ptr_k4aTableData
+            = (k4a_float2_t*)(void*)k4a_image_get_buffer(sptr_kinect->m_xyT);
+
+        // share k4a resources with intact
+        sptr_i3d->setDepthWidth(w);
+        sptr_i3d->setDepthHeight(h);
+        sptr_i3d->setSensorImgData(ptr_k4aImgData);
+        sptr_i3d->setSensorTableData(ptr_k4aTableData);
+        sptr_i3d->setSensorDepthData(ptr_k4aDepthData);
+        sptr_i3d->setSensorPCloudData(ptr_k4aPCloudData);
+
+        // release k4a resources
+        sptr_kinect->releaseK4aImages();
+        sptr_kinect->releaseK4aCapture();
+        RAISE_SENSOR_RESOURCES_READY_FLAG
+        EXIT_CALLBACK
+        STOP_TIMER(" main driver thread: ")
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    logger(argc, argv);
+    LOG(INFO) << "-- 3DINTACT is currently unstable and should only be used "
+                 "for academic purposes!";
+    LOG(INFO) << "-- press ESC to exit";
+
+    // initialize kinect
+    std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+
+    // initialize the 3dintact API
+    std::shared_ptr<i3d> sptr_i3d(new i3d());
+    sptr_i3d->raiseRunFlag();
+
+    // capture using depth sensor
+    std::thread k4aCaptureWorker(
+        k4aCapture, std::ref(sptr_kinect), std::ref(sptr_i3d));
+
+    // build point cloud
+    std::thread buildPCloudWorker(buildPcl, std::ref(sptr_i3d));
+
+    // find region of interest
+    std::thread findRegionWorker(findRegion, std::ref(sptr_i3d));
+
+    // create GL and CV specific frames
+    std::thread frameRegionWorker(frame, std::ref(sptr_i3d));
+
+    // segment
+    std::thread segmentRegionWorker(segment, std::ref(sptr_i3d));
+
+    // render
+    std::thread renderRegionWorker(render, std::ref(sptr_i3d));
+
+    // find objects
+    std::thread findRegionObjectsWorker(detect, std::ref(sptr_i3d));
+
+    // cluster
+    std::thread clusterRegionWorker(cluster, std::ref(sptr_i3d));
+
+    k4aCaptureWorker.join();
+    buildPCloudWorker.join();
+    renderRegionWorker.join();
+    findRegionObjectsWorker.join();
+    findRegionWorker.join();
+    segmentRegionWorker.join();
+    frameRegionWorker.join();
+    clusterRegionWorker.join();
+
+    // ------> do stuff with tabletop environment <------
+
+    // ------> do stuff with tabletop environment <------
+
+    return 0;
+}
+```
+
+###### Checkout:
+
+* the [`calibration`](https://github.com/edisonslightbulbs/calibration)  submodule dependency
+* the [`dbscan`](https://github.com/edisonslightbulbs/dbscan)  submodule dependency
+* the [`edge`](https://github.com/edisonslightbulbs/edge)  submodule dependency
+* the [`outliers`](https://github.com/edisonslightbulbs/outliers)  submodule dependency
+* the [`svd`](https://github.com/edisonslightbulbs/svd)  submodule dependency
+* the [`kinect`](https://github.com/edisonslightbulbs/kinect)  submodule dependency
+* the [`knn`](https://github.com/edisonslightbulbs/knn)  submodule dependency
+* the [`or`](https://github.com/edisonslightbulbs/or)  submodule dependency
+* the [`point`](https://github.com/edisonslightbulbs/point)  submodule dependency
+* the [`searcher`](https://github.com/edisonslightbulbs/searcher)  submodule dependency
+* the [`segment`](https://github.com/edisonslightbulbs/segment)  submodule dependency
+* the [`viewer`](https://github.com/edisonslightbulbs/viewer)  submodule dependency
