@@ -9,7 +9,7 @@
 #include "kinect.h"
 #include "point.h"
 
-class Intact {
+class i3d {
 
 public:
     int m_depthWidth {};
@@ -91,7 +91,7 @@ public:
      * Intact
      *   Constructs instance of the 3dintact API
      */
-    Intact();
+    i3d();
 
     /**
      * segment
@@ -100,7 +100,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void proposeRegion(std::shared_ptr<Intact>& sptr_i3d);
+    static void proposeRegion(std::shared_ptr<i3d>& sptr_i3d);
 
     /**
      * render
@@ -109,9 +109,9 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void renderRegion(std::shared_ptr<Intact>& sptr_i3d);
+    static void renderRegion(std::shared_ptr<i3d>& sptr_i3d);
 
-    static void buildPCloud(std::shared_ptr<Intact>& sptr_i3d);
+    static void buildPCloud(std::shared_ptr<i3d>& sptr_i3d);
 
     /**
      * cluster
@@ -125,7 +125,7 @@ public:
      *   Instance of API call.
      */
     static void clusterRegion(const float& epsilon, const int& minPoints,
-        std::shared_ptr<Intact>& sptr_intact);
+        std::shared_ptr<i3d>& sptr_intact);
 
     /**
      * findObjects
@@ -139,7 +139,7 @@ public:
      *   Instance of API call.
      */
     static void findRegionObjects(std::vector<std::string>& classnames,
-        torch::jit::Module& module, std::shared_ptr<Intact>& sptr_i3d);
+        torch::jit::Module& module, std::shared_ptr<i3d>& sptr_i3d);
 
     // ---------------------- asynchronous semaphores ---------------------//
 
@@ -226,11 +226,11 @@ public:
     // void setChromaBkgdImg_CV(uint8_t* ptr_img);
     // std::shared_ptr<uint8_t*> getChromaBkgdImg_CV();
 
-    static void frameRegion(std::shared_ptr<Intact>& sptr_i3d);
+    static void frameRegion(std::shared_ptr<i3d>& sptr_i3d);
 
-    static void segmentRegion(std::shared_ptr<Intact>& sptr_i3d);
+    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
 
-    static void chromakey(std::shared_ptr<Intact>& sptr_intact);
+    static void chromakey(std::shared_ptr<i3d>& sptr_intact);
 
     void setPCloudSeg(const std::vector<Point>& points);
 
