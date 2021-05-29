@@ -372,7 +372,25 @@ void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
 
         sptr_i3d->setPCloud2x2Bin(optimizedPCloud);
         RAISE_POINTCLOUD_READY_FLAG
-        STOP_TIMER(" point cloud builder thread: ")
+        STOP_TIMER(" build point cloud thread: runtime @ ")
+    }
+#endif
+}
+
+void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
+{
+#if PROPOSAL == 1
+    SLEEP_UNTIL_POINTCLOUD_READY
+    START
+    while (sptr_i3d->isRun()) {
+        START_TIMER
+        std::vector<Point> pCloud = *sptr_i3d->getPCloud2x2Bin();
+        std::vector<Point> pCloudSeg = region::segment(pCloud);
+        std::pair<Point, Point> boundary = utils::queryBoundary(pCloudSeg);
+        sptr_i3d->setPCloudSeg2x2Bin(pCloudSeg);
+        sptr_i3d->setI3dBoundary(boundary);
+        RAISE_BOUNDARY_SET_FLAG
+        STOP_TIMER(" propose region thread: runtime @ ")
     }
 #endif
 }
@@ -417,25 +435,7 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
         sptr_i3d->setImgFrame_GL(imgFrame_GL);
         sptr_i3d->setImgFrame_CV(imgFrame_CV);
         RAISE_FRAMES_READY_FLAG
-        STOP_TIMER(" frame builder thread: ")
-    }
-#endif
-}
-
-void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
-{
-#if PROPOSAL == 1
-    SLEEP_UNTIL_POINTCLOUD_READY
-    START
-    while (sptr_i3d->isRun()) {
-        START_TIMER
-        std::vector<Point> pCloud = *sptr_i3d->getPCloud2x2Bin();
-        std::vector<Point> pCloudSeg = region::segment(pCloud);
-        std::pair<Point, Point> boundary = utils::queryBoundary(pCloudSeg);
-        sptr_i3d->setPCloudSeg2x2Bin(pCloudSeg);
-        sptr_i3d->setI3dBoundary(boundary);
-        RAISE_BOUNDARY_SET_FLAG
-        STOP_TIMER(" region finder thread: ")
+        STOP_TIMER(" frame region thread: runtime @ ")
     }
 #endif
 }
@@ -474,7 +474,8 @@ void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
         sptr_i3d->setI3dPCloudSegFrame(pCloudFrame);
         sptr_i3d->setI3dImgSegFrame_GL(imgFrame_GL);
         RAISE_SEGMENTATION_DONE_FLAG
-        STOP_TIMER(" segmentation thread: ")
+        STOP_TIMER(" segment region thread: runtime @ ")
+        STOP
     }
 #endif
 }
@@ -486,6 +487,7 @@ void i3d::clusterRegion(
     SLEEP_UNTIL_SEGMENT_READY
     START
     while (sptr_i3d->isRun()) {
+        START_TIMER
         std::vector<Point> points = *sptr_i3d->getPCloudSeg();
 
         // dbscan using kd-tree: returns clustered indexes
@@ -499,6 +501,7 @@ void i3d::clusterRegion(
             });
         sptr_i3d->setPCloudClusters({ points, clusters });
         RAISE_CLUSTERS_READY_FLAG
+        STOP_TIMER(" cluster region thread: runtime @ ")
     }
 #endif
 }
@@ -520,11 +523,9 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
     uint8_t* ptr_img;
 
     while (sptr_i3d->isRun()) {
+        START_TIMER
 
-        // start frame rate clock
         clock_t start = clock();
-
-        // get resources
         int w = sptr_i3d->getDepthWidth();
         int h = sptr_i3d->getDepthHeight();
 
@@ -575,16 +576,8 @@ void i3d::findRegionObjects(std::vector<std::string>& classnames,
                     (right - left) / 200, cv::Scalar(0, 255, 0), 2);
             }
         }
-
-        cv::putText(frame,
-            "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
-            cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1,
-            cv::Scalar(0, 255, 0), 2);
-
-        cv::imshow("", frame);
-        if (cv::waitKey(1) == 27) {
-            STOP
-        }
+        utils::cvDisplay(frame, sptr_i3d, start);
+        STOP_TIMER(" find region objects thread: runtime @ ")
     }
 #endif
 }
