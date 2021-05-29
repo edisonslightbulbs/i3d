@@ -24,8 +24,7 @@ i3d::i3d()
     sptr_stop = std::make_shared<bool>(false);
     sptr_clustered = std::make_shared<bool>(false);
     sptr_segmented = std::make_shared<bool>(false);
-    sptr_boundarySet = std::make_shared<bool>(false);
-    sptr_framesReady = std::make_shared<bool>(false);
+    sptr_proposalReady = std::make_shared<bool>(false);
     sptr_pCloudReady = std::make_shared<bool>(false);
     sptr_resourcesReady = std::make_shared<bool>(false);
 }
@@ -60,22 +59,22 @@ bool i3d::isSegmented()
     return *sptr_segmented;
 }
 
-bool i3d::isBoundarySet()
+bool i3d::isProposalReady()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
-    return *sptr_boundarySet;
+    return *sptr_proposalReady;
+}
+
+void i3d::raiseProposalReadyFlag()
+{
+    std::lock_guard<std::mutex> lck(m_flagMutex);
+    *sptr_proposalReady = true;
 }
 
 void i3d::raiseSegmentedFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_segmented = true;
-}
-
-void i3d::raiseBoundarySetFlag()
-{
-    std::lock_guard<std::mutex> lck(m_flagMutex);
-    *sptr_boundarySet = true;
 }
 
 bool i3d::isPCloudReady()
@@ -88,18 +87,6 @@ void i3d::raisePCloudReadyFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_pCloudReady = true;
-}
-
-bool i3d::framesReady()
-{
-    std::lock_guard<std::mutex> lck(m_flagMutex);
-    return *sptr_framesReady;
-}
-
-void i3d::raiseFramesReadyFlag()
-{
-    std::lock_guard<std::mutex> lck(m_flagMutex);
-    *sptr_framesReady = true;
 }
 
 bool i3d::isClustered()
@@ -234,7 +221,7 @@ void i3d::setPCloud(const std::vector<Point>& points)
     sptr_pCloud = std::make_shared<std::vector<Point>>(points);
 }
 
-std::shared_ptr<std::vector<Point>> i3d::getPCloud()
+__attribute__((unused)) std::shared_ptr<std::vector<Point>> i3d::getPCloud()
 {
     std::lock_guard<std::mutex> lck(m_pCloudMutex);
     return sptr_pCloud;
@@ -288,7 +275,7 @@ std::shared_ptr<std::vector<int16_t>> i3d::getPCloudFrame()
     return sptr_pCloudFrame;
 }
 
-void i3d::setI3dPCloudSegFrame(const std::vector<int16_t>& frame)
+void i3d::setPCloudSegFrame(const std::vector<int16_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_pCloudSegFrameMutex);
     sptr_pCloudSegFrame = std::make_shared<std::vector<int16_t>>(frame);
@@ -300,7 +287,7 @@ std::shared_ptr<std::vector<int16_t>> i3d::getPCloudSegFrame()
     return sptr_pCloudSegFrame;
 }
 
-void i3d::setI3dImgSegFrame_GL(const std::vector<uint8_t>& frame)
+void i3d::setImgSegFrame_GL(const std::vector<uint8_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_imgSegFrameMutex_GL);
     sptr_imgFrameSeg_GL = std::make_shared<std::vector<uint8_t>>(frame);
@@ -340,7 +327,7 @@ i3d::getPCloudClusters()
 void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
 {
 #if BUILD_POINTCLOUD == 1
-    SLEEP_UNTIL_RESOURCES_READY
+    SLEEP_UNTIL_SENSOR_DATA_READY
     START
     int w = sptr_i3d->getDepthWidth();
     int h = sptr_i3d->getDepthHeight();
@@ -379,7 +366,7 @@ void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
 
 void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
-#if PROPOSAL == 1
+#if PROPOSE_REGION == 1
     SLEEP_UNTIL_POINTCLOUD_READY
     START
     while (sptr_i3d->isRun()) {
@@ -389,24 +376,30 @@ void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
         std::pair<Point, Point> boundary = utils::queryBoundary(pCloudSeg);
         sptr_i3d->setPCloudSeg2x2Bin(pCloudSeg);
         sptr_i3d->setI3dBoundary(boundary);
-        RAISE_BOUNDARY_SET_FLAG
+        RAISE_PROPOSAL_READY_FLAG
         STOP_TIMER(" propose region thread: runtime @ ")
     }
 #endif
 }
 
-void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
+void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
-#if FRAMES == 1
-    SLEEP_UNTIL_RESOURCES_READY
+#if SEGMENT_REGION == 1
+    SLEEP_UNTIL_PROPOSAL_READY_FLAG
     START
     int w = sptr_i3d->getDepthWidth();
     int h = sptr_i3d->getDepthHeight();
 
     std::vector<Point> pCloud(w * h);
+    std::vector<Point> pCloudSeg(w * h);
+
     std::vector<int16_t> pCloudFrame(w * h * 3);
     std::vector<uint8_t> imgFrame_GL(w * h * 4);
     std::vector<uint8_t> imgFrame_CV(w * h * 4);
+
+    std::vector<int16_t> pCloudSegFrame(w * h * 3);
+    std::vector<uint8_t> imgSegFrame_GL(w * h * 4);
+    std::vector<uint8_t> imgSegFrame_CV(w * h * 4);
 
     uint8_t* ptr_sensorImgData;
     int16_t* ptr_sensorPCloudData;
@@ -416,8 +409,11 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
         ptr_sensorPCloudData = *sptr_i3d->getSensorPCloudData();
         ptr_sensorImgData = *sptr_i3d->getSensorImgData();
 
+        int index = 0;
         for (int i = 0; i < w * h; i++) {
             Point point;
+
+            // create unsegmented assets
             if (utils::invalid(i, ptr_sensorPCloudData, ptr_sensorImgData)) {
                 utils::addXYZ(i, pCloudFrame);
                 utils::addPixel_GL(i, imgFrame_GL);
@@ -429,53 +425,32 @@ void i3d::frameRegion(std::shared_ptr<i3d>& sptr_i3d)
             }
             utils::adapt(i, point, pCloudFrame, imgFrame_CV);
             pCloud[i] = point;
-        }
-        sptr_i3d->setPCloud(pCloud);
-        sptr_i3d->setPCloudFrame(pCloudFrame);
-        sptr_i3d->setImgFrame_GL(imgFrame_GL);
-        sptr_i3d->setImgFrame_CV(imgFrame_CV);
-        RAISE_FRAMES_READY_FLAG
-        STOP_TIMER(" frame region thread: runtime @ ")
-    }
-#endif
-}
 
-void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
-{
-#if SEGMENT == 1
-    SLEEP_UNTIL_BOUNDARY_SET
-    START
-    int w = sptr_i3d->getDepthWidth();
-    int h = sptr_i3d->getDepthHeight();
-
-    std::vector<Point> pCloudSeg(w * h);
-
-    while (sptr_i3d->isRun()) {
-        START_TIMER
-        std::vector<Point> pCloud = *sptr_i3d->getPCloud();
-        std::vector<int16_t> pCloudFrame = *sptr_i3d->getPCloudFrame();
-        std::vector<uint8_t> imgFrame_GL = *sptr_i3d->getImgFrame_GL();
-
-        int index = 0;
-        for (int i = 0; i < w * h; i++) {
+            // create segmented assets
             if (utils::inSegment(i, pCloudFrame, sptr_i3d->getBoundary().first,
                     sptr_i3d->getBoundary().second)) {
-                pCloudSeg[index] = pCloud[i];
+                utils::addXYZ(i, pCloudSegFrame, ptr_sensorPCloudData);
+                utils::addPixel_GL(i, imgSegFrame_GL, ptr_sensorImgData);
+                utils::addPixel_CV(i, imgSegFrame_CV, ptr_sensorImgData);
+                pCloudSeg[index] = point;
                 index++;
-                continue;
+            } else {
+                utils::addXYZ(i, pCloudSegFrame);
+                utils::addPixel_GL(i, imgSegFrame_GL);
             }
-            utils::addXYZ(i, pCloudFrame);
-            utils::addPixel_GL(i, imgFrame_GL);
         }
         std::vector<Point> optimizedPCloudSeg(
             pCloudSeg.begin(), pCloudSeg.begin() + index);
 
+        sptr_i3d->setPCloud(pCloud);
+        sptr_i3d->setPCloudFrame(pCloudFrame);
+        sptr_i3d->setImgFrame_GL(imgFrame_GL);
+        sptr_i3d->setImgFrame_CV(imgFrame_CV);
         sptr_i3d->setPCloudSeg(optimizedPCloudSeg);
-        sptr_i3d->setI3dPCloudSegFrame(pCloudFrame);
-        sptr_i3d->setI3dImgSegFrame_GL(imgFrame_GL);
-        RAISE_SEGMENTATION_DONE_FLAG
-        STOP_TIMER(" segment region thread: runtime @ ")
-        STOP
+        sptr_i3d->setPCloudSegFrame(pCloudSegFrame);
+        sptr_i3d->setImgSegFrame_GL(imgSegFrame_GL);
+        RAISE_SEGMENT_READY_FLAG
+        STOP_TIMER(" frame region thread: runtime @ ")
     }
 #endif
 }
@@ -483,14 +458,12 @@ void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
 void i3d::clusterRegion(
     const float& epsilon, const int& minPoints, std::shared_ptr<i3d>& sptr_i3d)
 {
-#if CLUSTER == 1
+#if CLUSTER_REGION == 1
     SLEEP_UNTIL_SEGMENT_READY
     START
     while (sptr_i3d->isRun()) {
         START_TIMER
         std::vector<Point> points = *sptr_i3d->getPCloudSeg();
-
-        // dbscan using kd-tree: returns clustered indexes
         auto clusters = dbscan::cluster(points, epsilon, minPoints);
 
         // sort clusters in descending order
@@ -508,7 +481,7 @@ void i3d::clusterRegion(
 
 void i3d::renderRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
-#if RENDER == 1
+#if RENDER_REGION == 1
     SLEEP_UNTIL_SEGMENT_READY
     viewer::draw(sptr_i3d);
 #endif
@@ -517,7 +490,7 @@ void i3d::renderRegion(std::shared_ptr<i3d>& sptr_i3d)
 void i3d::findRegionObjects(std::vector<std::string>& classnames,
     torch::jit::script::Module& module, std::shared_ptr<i3d>& sptr_i3d)
 {
-#if OR == 1
+#if DETECT_OBJECTS == 1
     // SLEEP_UNTIL_FRAMES_READY
     SLEEP_UNTIL_FRAMES_READY
     uint8_t* ptr_img;
