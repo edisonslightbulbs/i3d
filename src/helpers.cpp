@@ -1,5 +1,11 @@
-#include "helpers.h"
 #include <cmath>
+#include <k4a/k4a.hpp>
+#include <opencv2/core.hpp>
+#include <torch/script.h>
+
+#include "helpers.h"
+#include "macros.hpp"
+#include "point.h"
 
 void utils::configTorch(
     std::vector<std::string>& classNames, torch::jit::script::Module& module)
@@ -162,6 +168,14 @@ void utils::stitch(const int& index, Point& point, int16_t* ptr_pcl,
     ptr_img_GL[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
+void utils::stitch(const int& index, Point& point, uint8_t* ptr_img_CV)
+{
+    ptr_img_CV[4 * index + 0] = point.m_bgra[0]; // blue
+    ptr_img_CV[4 * index + 1] = point.m_bgra[1]; // green
+    ptr_img_CV[4 * index + 2] = point.m_bgra[2]; // red
+    ptr_img_CV[4 * index + 3] = point.m_bgra[3]; // alpha
+}
+
 std::pair<Point, Point> utils::queryBoundary(std::vector<Point>& points)
 {
     std::vector<int16_t> X(points.size());
@@ -183,4 +197,18 @@ std::pair<Point, Point> utils::queryBoundary(std::vector<Point>& points)
     Point min(xMin, yMin, zMin);
     Point max(xMax, yMax, zMax);
     return { min, max };
+}
+
+void utils::cvDisplay(
+    cv::Mat img, std::shared_ptr<i3d>& sptr_i3d, clock_t start)
+{
+    cv::putText(img,
+        "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
+        cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0),
+        2);
+
+    cv::imshow("", img);
+    if (cv::waitKey(1) == 27) {
+        STOP
+    }
 }
