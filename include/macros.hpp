@@ -33,7 +33,7 @@ __attribute__((unused)) constexpr uint8_t deepgreen[3] = { 53, 151, 143 };
 __attribute__((unused)) constexpr uint8_t darkgreen[3] = { 1, 102, 94 };
 __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 
-#define SLEEP_UNTIL_RESOURCES_READY                                            \
+#define SLEEP_UNTIL_SENSOR_DATA_READY                                          \
     while (!sptr_i3d->isSensorReady()) {                                       \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
@@ -53,32 +53,20 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 #define RAISE_POINTCLOUD_READY_FLAG                                            \
     if (init) {                                                                \
         init = false;                                                          \
-        LOG(INFO) << "-- point cloud created";                                 \
+        LOG(INFO) << "-- building point cloud";                                \
         sptr_i3d->raisePCloudReadyFlag();                                      \
     }
 
-#define SLEEP_UNTIL_FRAMES_READY                                               \
-    while (!sptr_i3d->framesReady()) {                                         \
+#define SLEEP_UNTIL_PROPOSAL_READY_FLAG                                        \
+    while (!sptr_i3d->isProposalReady()) {                                     \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define RAISE_FRAMES_READY_FLAG                                                \
+#define RAISE_PROPOSAL_READY_FLAG                                              \
     if (init) {                                                                \
         init = false;                                                          \
-        LOG(INFO) << "-- openGL and openCV frames created ";                   \
-        sptr_i3d->raiseFramesReadyFlag();                                      \
-    }
-
-#define SLEEP_UNTIL_BOUNDARY_SET                                               \
-    while (!sptr_i3d->isBoundarySet()) {                                       \
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
-    }
-
-#define RAISE_BOUNDARY_SET_FLAG                                                \
-    if (init) {                                                                \
-        init = false;                                                          \
-        LOG(INFO) << "-- segment boundary set ";                               \
-        sptr_i3d->raiseBoundarySetFlag();                                      \
+        LOG(INFO) << "-- proposing region ";                                   \
+        sptr_i3d->raiseProposalReadyFlag();                                    \
     }
 
 #define SLEEP_UNTIL_SEGMENT_READY                                              \
@@ -86,10 +74,10 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define RAISE_SEGMENTATION_DONE_FLAG                                           \
+#define RAISE_SEGMENT_READY_FLAG                                               \
     if (init) {                                                                \
         init = false;                                                          \
-        LOG(INFO) << "-- segmenting point cloud";                              \
+        LOG(INFO) << "-- segmenting region";                                   \
         sptr_i3d->raiseSegmentedFlag();                                        \
     }
 
@@ -101,6 +89,7 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 #define RAISE_CLUSTERS_READY_FLAG                                              \
     if (init) {                                                                \
         init = false;                                                          \
+        LOG(INFO) << "-- clustering region";                                   \
         sptr_i3d->raiseClusteredFlag();                                        \
     }
 
@@ -126,12 +115,11 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 #endif
 
 #define BUILD_POINTCLOUD 1
-#define FRAMES 1
-#define PROPOSAL 1
-#define SEGMENT 1
-#define RENDER 1
-#define OR 0
-#define CLUSTER 1 // testing not ready for commit
+#define PROPOSE_REGION 1
+#define SEGMENT_REGION 1
+#define RENDER_REGION 1
+#define CLUSTER_REGION 1
+#define DETECT_OBJECTS 0
 
 // todo: introduce macro configuration logic
 
