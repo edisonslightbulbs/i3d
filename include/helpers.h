@@ -50,5 +50,9 @@ void stitch(const int& index, Point& point, int16_t* ptr_pcl,
     uint8_t* ptr_img_GL, uint8_t* ptr_img_CV);
 
 std::pair<Point, Point> queryBoundary(std::vector<Point>& points);
+
+void stitch(const int& index, Point& point, uint8_t* ptr_img_CV);
+
+void cvDisplay(cv::Mat img, std::shared_ptr<i3d>& sptr_i3d, clock_t start);
 }
 #endif /*INTACT_UTILS_H*/
