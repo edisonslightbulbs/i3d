@@ -70,8 +70,7 @@ private:
     std::shared_ptr<bool> sptr_clustered;
     std::shared_ptr<bool> sptr_segmented;
     std::shared_ptr<bool> sptr_pCloudReady;
-    std::shared_ptr<bool> sptr_boundarySet;
-    std::shared_ptr<bool> sptr_framesReady;
+    std::shared_ptr<bool> sptr_proposalReady;
     std::shared_ptr<bool> sptr_resourcesReady;
 
 public:
@@ -132,17 +131,9 @@ public:
     static void findRegionObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<i3d>& sptr_i3d);
 
-    /** frameRegion
+    /** segmentRegion
      *   Creates point cloud and image data frames
      *   suited to i3d computations.
-     *
-     * @param sptr_i3d
-     *   Instance of API call.
-     */
-    static void frameRegion(std::shared_ptr<i3d>& sptr_i3d);
-
-    /** segmentRegion
-     *   Segments planar surface from a 3D point cloud.
      *
      * @param sptr_i3d
      *   Instance of API call.
@@ -153,9 +144,8 @@ public:
     bool isRun();
     bool isStop();
     bool isSegmented();
-    bool framesReady();
     bool isClustered();
-    bool isBoundarySet();
+    bool isProposalReady();
     bool isPCloudReady();
     bool isSensorReady();
 
@@ -164,8 +154,7 @@ public:
     void raiseSegmentedFlag();
     void raiseClusteredFlag();
     void raiseSensorReadyFlag();
-    void raiseFramesReadyFlag();
-    void raiseBoundarySetFlag();
+    void raiseProposalReadyFlag();
     void raisePCloudReadyFlag();
 
     int getDepthWidth();
@@ -197,17 +186,17 @@ public:
     void setImgFrame_GL(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgFrame_GL();
 
-    void setI3dPCloudSegFrame(const std::vector<int16_t>& frame);
+    void setPCloudSegFrame(const std::vector<int16_t>& frame);
     std::shared_ptr<std::vector<int16_t>> getPCloudSegFrame();
 
-    void setI3dImgSegFrame_GL(const std::vector<uint8_t>& frame);
+    void setImgSegFrame_GL(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgSegFrame_GL();
 
     void setI3dBoundary(std::pair<Point, Point>& boundary);
     std::pair<Point, Point> getBoundary();
 
     void setPCloud(const std::vector<Point>& points);
-    std::shared_ptr<std::vector<Point>> getPCloud();
+    __attribute__((unused)) std::shared_ptr<std::vector<Point>> getPCloud();
 
     void setPCloudSeg(const std::vector<Point>& points);
     std::shared_ptr<std::vector<Point>> getPCloudSeg();
