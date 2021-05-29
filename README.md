@@ -1,4 +1,5 @@
 ### :mortar_board: :mortar_board: :mortar_board: :mortar_board:
+
 #### an API for extracting surfaces and surface objects from images and 3 point clouds
 
 *   the interface
@@ -73,7 +74,7 @@ private:
     std::shared_ptr<bool> sptr_clustered;
     std::shared_ptr<bool> sptr_segmented;
     std::shared_ptr<bool> sptr_pCloudReady;
-    std::shared_ptr<bool> sptr_boundarySet;
+    std::shared_ptr<bool> sptr_proposalReady;
     std::shared_ptr<bool> sptr_framesReady;
     std::shared_ptr<bool> sptr_resourcesReady;
 
@@ -135,14 +136,14 @@ public:
     static void findRegionObjects(std::vector<std::string>& classnames,
         torch::jit::Module& module, std::shared_ptr<i3d>& sptr_i3d);
 
-    /** frameRegion
+    /** segmentRegion
      *   Creates point cloud and image data frames
      *   suited to i3d computations.
      *
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void frameRegion(std::shared_ptr<i3d>& sptr_i3d);
+    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
 
     /** segmentRegion
      *   Segments planar surface from a 3D point cloud.
@@ -158,7 +159,7 @@ public:
     bool isSegmented();
     bool framesReady();
     bool isClustered();
-    bool isBoundarySet();
+    bool isProposalReady();
     bool isPCloudReady();
     bool isSensorReady();
 
@@ -168,7 +169,7 @@ public:
     void raiseClusteredFlag();
     void raiseSensorReadyFlag();
     void raiseFramesReadyFlag();
-    void raiseBoundarySetFlag();
+    void raiseProposalReadyFlag();
     void raisePCloudReadyFlag();
 
     int getDepthWidth();
@@ -200,10 +201,10 @@ public:
     void setImgFrame_GL(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgFrame_GL();
 
-    void setI3dPCloudSegFrame(const std::vector<int16_t>& frame);
+    void setPCloudSegFrame(const std::vector<int16_t>& frame);
     std::shared_ptr<std::vector<int16_t>> getPCloudSegFrame();
 
-    void setI3dImgSegFrame_GL(const std::vector<uint8_t>& frame);
+    void setImgSegFrame_GL(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgSegFrame_GL();
 
     void setI3dBoundary(std::pair<Point, Point>& boundary);
@@ -225,7 +226,7 @@ public:
 
 ```
 
-* usage example
+*   usage example
 
 ```cpp
 #include <chrono>
@@ -265,7 +266,7 @@ void segment(std::shared_ptr<i3d>& sptr_i3d)
     sptr_i3d->segmentRegion(sptr_i3d);
 }
 
-void frame(std::shared_ptr<i3d>& sptr_i3d) { sptr_i3d->frameRegion(sptr_i3d); }
+void frame(std::shared_ptr<i3d>& sptr_i3d) { sptr_i3d->segmentRegion(sptr_i3d); }
 
 void cluster(std::shared_ptr<i3d>& sptr_i3d)
 {
@@ -380,15 +381,14 @@ int main(int argc, char* argv[])
 
 ###### Checkout:
 
-* the [`calibration`](https://github.com/edisonslightbulbs/calibration)  submodule dependency
-* the [`dbscan`](https://github.com/edisonslightbulbs/dbscan)  submodule dependency
-* the [`edge`](https://github.com/edisonslightbulbs/edge)  submodule dependency
-* the [`outliers`](https://github.com/edisonslightbulbs/outliers)  submodule dependency
-* the [`svd`](https://github.com/edisonslightbulbs/svd)  submodule dependency
-* the [`kinect`](https://github.com/edisonslightbulbs/kinect)  submodule dependency
-* the [`knn`](https://github.com/edisonslightbulbs/knn)  submodule dependency
-* the [`or`](https://github.com/edisonslightbulbs/or)  submodule dependency
-* the [`point`](https://github.com/edisonslightbulbs/point)  submodule dependency
-* the [`searcher`](https://github.com/edisonslightbulbs/searcher)  submodule dependency
-* the [`segment`](https://github.com/edisonslightbulbs/segment)  submodule dependency
-* the [`viewer`](https://github.com/edisonslightbulbs/viewer)  submodule dependency
+*   the [`calibration`](https://github.com/edisonslightbulbs/calibration)  submodule dependency
+*   the [`dbscan`](https://github.com/edisonslightbulbs/dbscan)  submodule dependency
+*   the [`edge`](https://github.com/edisonslightbulbs/edge)  submodule dependency
+*   the [`outliers`](https://github.com/edisonslightbulbs/outliers)  submodule dependency
+*   the [`svd`](https://github.com/edisonslightbulbs/svd)  submodule dependency
+*   the [`kinect`](https://github.com/edisonslightbulbs/kinect)  submodule dependency
+*   the [`knn`](https://github.com/edisonslightbulbs/knn)  submodule dependency
+*   the [`or`](https://github.com/edisonslightbulbs/or)  submodule dependency
+*   the [`point`](https://github.com/edisonslightbulbs/point)  submodule dependency
+*   the [`segment`](https://github.com/edisonslightbulbs/segment)  submodule dependency
+*   the [`viewer`](https://github.com/edisonslightbulbs/viewer)  submodule dependency
