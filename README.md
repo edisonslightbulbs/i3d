@@ -93,13 +93,13 @@ public:
      */
     static void proposeRegion(std::shared_ptr<i3d>& sptr_i3d);
 
-    /** renderRegion
+    /** viewRegion
      *   Renders segmented planar surface using OpenGL.
      *
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void renderRegion(std::shared_ptr<i3d>& sptr_i3d);
+    static void viewRegion(std::shared_ptr<i3d>& sptr_i3d);
 
     /** buildPCloud
      *   Builds a point cloud suited to i3d computations
@@ -245,7 +245,7 @@ std::mutex m;
 
 void render(std::shared_ptr<i3d>& sptr_i3d)
 {
-    sptr_i3d->renderRegion(sptr_i3d);
+    sptr_i3d->viewRegion(sptr_i3d);
 }
 
 void detect(std::shared_ptr<i3d>& sptr_intact)
