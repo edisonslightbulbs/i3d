@@ -9,7 +9,7 @@
 #include "kinect.h"
 #include "point.h"
 
-class i3d {
+class I3d {
 
 public:
     int m_depthWidth {};
@@ -77,7 +77,7 @@ public:
     /** i3d
      *   Constructs instance of 3dintact
      */
-    i3d();
+    I3d();
 
     /** proposeRegion
      *   Proposes a region/segment of an orthogonal
@@ -86,15 +86,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void proposeRegion(std::shared_ptr<i3d>& sptr_i3d);
-
-    /** renderRegion
-     *   Renders segmented planar surface using OpenGL.
-     *
-     * @param sptr_i3d
-     *   Instance of API call.
-     */
-    static void renderRegion(std::shared_ptr<i3d>& sptr_i3d);
+    static void proposeRegion(std::shared_ptr<I3d>& sptr_i3d);
 
     /** buildPCloud
      *   Builds a point cloud suited to i3d computations
@@ -102,7 +94,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void buildPCloud(std::shared_ptr<i3d>& sptr_i3d);
+    static void buildPCloud(std::shared_ptr<I3d>& sptr_i3d);
 
     /** clusterRegion
      *   Does spatial clustering of the extracted
@@ -116,7 +108,7 @@ public:
      *   Instance of API call.
      */
     static void clusterRegion(const float& epsilon, const int& minPoints,
-        std::shared_ptr<i3d>& sptr_i3d);
+        std::shared_ptr<I3d>& sptr_i3d);
 
     /** findRegionObjects
      *   Uses YOLO .v5 to detect objects in segmented region.
@@ -129,7 +121,7 @@ public:
      *   Instance of API call.
      */
     static void findRegionObjects(std::vector<std::string>& classnames,
-        torch::jit::Module& module, std::shared_ptr<i3d>& sptr_i3d);
+        torch::jit::Module& module, std::shared_ptr<I3d>& sptr_i3d);
 
     /** segmentRegion
      *   Creates point cloud and image data frames
@@ -138,7 +130,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
+    static void segmentRegion(std::shared_ptr<I3d>& sptr_i3d);
 
     void stop();
     bool isRun();
