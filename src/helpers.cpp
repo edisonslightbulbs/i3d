@@ -199,8 +199,9 @@ std::pair<Point, Point> utils::queryBoundary(std::vector<Point>& points)
     return { min, max };
 }
 
+// todo: move to viewer
 void utils::cvDisplay(
-    cv::Mat img, std::shared_ptr<i3d>& sptr_i3d, clock_t start)
+    cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start)
 {
     cv::putText(img,
         "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
