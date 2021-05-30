@@ -117,7 +117,6 @@ __attribute__((unused)) constexpr uint8_t black[3] = { 0, 0, 0 };
 #define BUILD_POINTCLOUD 1
 #define PROPOSE_REGION 1
 #define SEGMENT_REGION 1
-#define RENDER_REGION 1
 #define CLUSTER_REGION 1
 #define DETECT_OBJECTS 0
 
