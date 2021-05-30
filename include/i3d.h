@@ -16,7 +16,6 @@ public:
     int m_depthHeight {};
 
 private:
-    // hierarchical mutual exclusion
     std::mutex m_depthDimensions;
 
     std::mutex m_sensorTableDataMutex;
