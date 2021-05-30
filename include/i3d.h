@@ -110,19 +110,6 @@ public:
     static void clusterRegion(const float& epsilon, const int& minPoints,
         std::shared_ptr<I3d>& sptr_i3d);
 
-    /** findRegionObjects
-     *   Uses YOLO .v5 to detect objects in segmented region.
-     *
-     * @param classnames
-     *   Object class names.
-     * @param module
-     *   torch module
-     * @param sptr_i3d
-     *   Instance of API call.
-     */
-    static void findRegionObjects(std::vector<std::string>& classnames,
-        torch::jit::Module& module, std::shared_ptr<I3d>& sptr_i3d);
-
     /** segmentRegion
      *   Creates point cloud and image data frames
      *   suited to i3d computations.
