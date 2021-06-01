@@ -1,3 +1,4 @@
+#include <Eigen/Dense>
 #include <chrono>
 #include <k4a/k4a.hpp>
 #include <opencv2/core.hpp>
@@ -9,7 +10,9 @@
 #include "i3d.h"
 #include "kinect.h"
 #include "macros.hpp"
+#include "outliers.h"
 #include "region.h"
+#include "svd.h"
 
 I3d::I3d()
 {
@@ -322,6 +325,19 @@ I3d::getPCloudClusters()
     return sptr_pCloudClusters;
 }
 
+void I3d::setColClusters(const std::pair<int16_t*, uint8_t*>& colClusters)
+{
+    std::lock_guard<std::mutex> lck(m_colClusterMutex);
+    sptr_colClusters
+        = std::make_shared<std::pair<int16_t*, uint8_t*>>(colClusters);
+}
+
+std::shared_ptr<std::pair<int16_t*, uint8_t*>> I3d::getColClusters()
+{
+    std::lock_guard<std::mutex> lck(m_colClusterMutex);
+    return sptr_colClusters;
+}
+
 void I3d::buildPCloud(std::shared_ptr<I3d>& sptr_i3d)
 {
 #if BUILD_POINTCLOUD == 1
@@ -458,19 +474,134 @@ void I3d::clusterRegion(
 {
 #if CLUSTER_REGION == 1
     SLEEP_UNTIL_SEGMENT_READY
+    int w = sptr_i3d->getDepthWidth();
+    int h = sptr_i3d->getDepthHeight();
     START
     while (sptr_i3d->isRun()) {
         START_TIMER
         std::vector<Point> points = *sptr_i3d->getPCloudSeg();
-        auto clusters = dbscan::cluster(points, epsilon, minPoints);
 
-        // sort clusters in descending order
-        std::sort(clusters.begin(), clusters.end(),
+        // dbscan::cluster clusters candidate interaction regions
+        //   from the segmented tabletop surface. It returns a
+        //   collection of clusters, more specifically, a list of
+        //   index collections. The indexes correspond to clustered
+        //   3D points specified as part of function arguments.
+        //
+        auto indexClusters = dbscan::cluster(points, epsilon, minPoints);
+
+        // sorting the clusters is one possible approach to
+        //   extracting the vacant or non occupied space on
+        //   the tabletop surface, this is of cause assuming
+        //   non occupied space is prevalent on the tabletop
+        //   environment.
+        //
+        std::sort(indexClusters.begin(), indexClusters.end(),
             [](const std::vector<unsigned long>& a,
                 const std::vector<unsigned long>& b) {
                 return a.size() > b.size();
             });
-        sptr_i3d->setPCloudClusters({ points, clusters });
+
+        // cast *index clusters to *point clusters
+        std::vector<std::vector<Point>> pointClusters;
+        for (const auto& cluster : indexClusters) {
+            std::vector<Point> heap;
+            for (const auto& index : cluster) {
+                heap.emplace_back(points[index]);
+            }
+            pointClusters.emplace_back(heap);
+        }
+
+        // extract the distance to the tabletop surface (f)
+        std::vector<float> depth(pointClusters[0].size());
+        for (int i = 0; i < pointClusters.size(); i++) {
+            depth[i] = pointClusters[0][i].m_xyz[2];
+        }
+        int16_t f = *std::max_element(depth.begin(), depth.end());
+
+        // one approach to analyzing the clusters is to study
+        // the face normals.
+        //
+
+        // config flags for svd computation
+        int flag = Eigen::ComputeThinU | Eigen::ComputeThinV;
+
+        // compute and heap the normals of each cluster
+        std::vector<Eigen::Vector3d> normals(pointClusters.size());
+        int index = 0;
+        for (const auto& cluster : pointClusters) {
+            SVD usv(cluster, flag);
+            normals[index] = usv.getV3Normal();
+            index++;
+        }
+
+        // extract the vacant space and corresponding normal
+        std::vector<Point> vacantSpace = pointClusters[0];
+        Eigen::Vector3d n1 = normals[0];
+
+        pointClusters.erase(pointClusters.begin());
+        normals.erase(normals.begin());
+        const float ARGMIN = -0.00000008;
+
+        std::vector<std::vector<Point>> objectClusters;
+
+        // find coplanar clusters
+        index = 0;
+        const float GIVE_WAY = 10; // height restriction in mm
+        for (const auto& n2 : normals) {
+            double numerator = n1.dot(n2);
+            double denominator = n1.norm() * n2.norm();
+            double solution = std::acos(numerator / denominator);
+
+            if (!std::isnan(solution) && solution < ARGMIN
+                && solution > -ARGMIN) {
+                for (const auto& point : pointClusters[index]) {
+                    vacantSpace.emplace_back(point);
+                }
+            } else {
+                objectClusters.emplace_back(pointClusters[index]);
+            }
+            index++;
+        }
+
+        // colorize objects on surface
+        std::vector<uint8_t*> colors;
+        utils::add(colors);
+
+        // stitch colorized segment
+        std::vector<Point> pCloudSegment;
+        index = 0;
+        for (auto& object : objectClusters) {
+            if (index < colors.size()) {
+                for (auto& point : object) {
+                    // point.setPixel_GL(colors[index]);
+                    pCloudSegment.emplace_back(point);
+                }
+                index++;
+            }
+        }
+        uint8_t col[4] = { 0, 0, 0, 0 };
+        for (auto& point : vacantSpace) {
+            point.setPixel_GL(col);
+            pCloudSegment.emplace_back(point);
+        }
+
+        int16_t pCloudFrame[w * h * 3];
+        uint8_t imgFrame_GL[w * h * 4];
+        uint8_t imgFrame_CV[w * h * 4];
+
+        index = 0;
+        for (const auto& point : pCloudSegment) {
+            utils::stitch(index, pCloudSegment[index], pCloudFrame, imgFrame_GL,
+                imgFrame_CV);
+            index++;
+        }
+
+        sptr_i3d->setColClusters({ pCloudFrame, imgFrame_GL });
+
+        // writePoints(pCloudSegment);
+        // writePoints(vacantSpace);
+
+        sptr_i3d->setPCloudClusters({ points, indexClusters });
         RAISE_CLUSTERS_READY_FLAG
         STOP_TIMER(" cluster region thread: runtime @ ")
     }
