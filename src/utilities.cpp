@@ -3,9 +3,9 @@
 #include <opencv2/core.hpp>
 #include <torch/script.h>
 
-#include "helpers.h"
 #include "macros.hpp"
 #include "point.h"
+#include "utilities.h"
 
 // colors handy for coloring clusters:
 // see@ https://colorbrewer2.org/#type=diverging&scheme=RdYlBu&n=9
@@ -194,6 +194,19 @@ void utils::stitch(const int& index, Point& point, int16_t* ptr_pCloud,
     ptr_img_GL[4 * index + 1] = point.m_rgba[1]; // green
     ptr_img_GL[4 * index + 2] = point.m_rgba[2]; // blue
     ptr_img_GL[4 * index + 3] = point.m_rgba[3]; // alpha
+}
+
+void utils::stitch(const int& index, Point& point, std::vector<int16_t>& pCloud,
+    std::vector<uint8_t> image_GL)
+{
+    pCloud[3 * index + 0] = point.m_xyz[0]; // x
+    pCloud[3 * index + 1] = point.m_xyz[1]; // y
+    pCloud[3 * index + 2] = point.m_xyz[2]; // z
+
+    image_GL[4 * index + 0] = point.m_rgba[0]; // red
+    image_GL[4 * index + 1] = point.m_rgba[1]; // green
+    image_GL[4 * index + 2] = point.m_rgba[2]; // blue
+    image_GL[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
 void utils::stitch(const int& index, Point& point, uint8_t* ptr_img_CV)
