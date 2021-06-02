@@ -56,5 +56,8 @@ void stitch(const int& index, Point& point, uint8_t* ptr_img_CV);
 void cvDisplay(cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start);
 
 void add(std::vector<uint8_t*>& colors);
+
+void stitch(const int& index, Point& point, std::vector<int16_t>& pCloud,
+    std::vector<uint8_t> image_GL);
 }
 #endif /*INTACT_UTILS_H*/
