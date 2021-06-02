@@ -6,13 +6,13 @@
 #include <utility>
 
 #include "dbscan.h"
-#include "helpers.h"
 #include "i3d.h"
 #include "kinect.h"
 #include "macros.hpp"
 #include "outliers.h"
 #include "region.h"
 #include "svd.h"
+#include "utilities.h"
 
 I3d::I3d()
 {
@@ -460,7 +460,6 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
         sptr_i3d->setPCloudFrame(pCloudFrame);
         sptr_i3d->setImgFrame_GL(imgFrame_GL);
         sptr_i3d->setImgFrame_CV(imgFrame_CV);
-        sptr_i3d->setPCloudSeg(optimizedPCloudSeg);
         sptr_i3d->setPCloudSegFrame(pCloudSegFrame);
         sptr_i3d->setImgSegFrame_GL(imgSegFrame_GL);
         RAISE_SEGMENT_READY_FLAG
@@ -500,106 +499,6 @@ void I3d::clusterRegion(
                 const std::vector<unsigned long>& b) {
                 return a.size() > b.size();
             });
-
-        // cast *index clusters to *point clusters
-        std::vector<std::vector<Point>> pointClusters;
-        for (const auto& cluster : indexClusters) {
-            std::vector<Point> heap;
-            for (const auto& index : cluster) {
-                heap.emplace_back(points[index]);
-            }
-            pointClusters.emplace_back(heap);
-        }
-
-        // extract the distance to the tabletop surface (f)
-        std::vector<float> depth(pointClusters[0].size());
-        for (int i = 0; i < pointClusters.size(); i++) {
-            depth[i] = pointClusters[0][i].m_xyz[2];
-        }
-        int16_t f = *std::max_element(depth.begin(), depth.end());
-
-        // one approach to analyzing the clusters is to study
-        // the face normals.
-        //
-
-        // config flags for svd computation
-        int flag = Eigen::ComputeThinU | Eigen::ComputeThinV;
-
-        // compute and heap the normals of each cluster
-        std::vector<Eigen::Vector3d> normals(pointClusters.size());
-        int index = 0;
-        for (const auto& cluster : pointClusters) {
-            SVD usv(cluster, flag);
-            normals[index] = usv.getV3Normal();
-            index++;
-        }
-
-        // extract the vacant space and corresponding normal
-        std::vector<Point> vacantSpace = pointClusters[0];
-        Eigen::Vector3d n1 = normals[0];
-
-        pointClusters.erase(pointClusters.begin());
-        normals.erase(normals.begin());
-        const float ARGMIN = -0.00000008;
-
-        std::vector<std::vector<Point>> objectClusters;
-
-        // find coplanar clusters
-        index = 0;
-        const float GIVE_WAY = 10; // height restriction in mm
-        for (const auto& n2 : normals) {
-            double numerator = n1.dot(n2);
-            double denominator = n1.norm() * n2.norm();
-            double solution = std::acos(numerator / denominator);
-
-            if (!std::isnan(solution) && solution < ARGMIN
-                && solution > -ARGMIN) {
-                for (const auto& point : pointClusters[index]) {
-                    vacantSpace.emplace_back(point);
-                }
-            } else {
-                objectClusters.emplace_back(pointClusters[index]);
-            }
-            index++;
-        }
-
-        // colorize objects on surface
-        std::vector<uint8_t*> colors;
-        utils::add(colors);
-
-        // stitch colorized segment
-        std::vector<Point> pCloudSegment;
-        index = 0;
-        for (auto& object : objectClusters) {
-            if (index < colors.size()) {
-                for (auto& point : object) {
-                    // point.setPixel_GL(colors[index]);
-                    pCloudSegment.emplace_back(point);
-                }
-                index++;
-            }
-        }
-        uint8_t col[4] = { 0, 0, 0, 0 };
-        for (auto& point : vacantSpace) {
-            point.setPixel_GL(col);
-            pCloudSegment.emplace_back(point);
-        }
-
-        int16_t pCloudFrame[w * h * 3];
-        uint8_t imgFrame_GL[w * h * 4];
-        uint8_t imgFrame_CV[w * h * 4];
-
-        index = 0;
-        for (const auto& point : pCloudSegment) {
-            utils::stitch(index, pCloudSegment[index], pCloudFrame, imgFrame_GL,
-                imgFrame_CV);
-            index++;
-        }
-
-        sptr_i3d->setColClusters({ pCloudFrame, imgFrame_GL });
-
-        // writePoints(pCloudSegment);
-        // writePoints(vacantSpace);
 
         sptr_i3d->setPCloudClusters({ points, indexClusters });
         RAISE_CLUSTERS_READY_FLAG
