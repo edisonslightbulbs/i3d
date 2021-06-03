@@ -70,9 +70,9 @@
         sptr_i3d->stop();                                                      \
     }
 
-#define STOP sptr_i3d->raiseStopFlag();
-
 #define START bool init = true;
+#define RUN sptr_i3d->isRun()
+#define STOP sptr_i3d->raiseStopFlag();
 
 #define PRINT(pCloud) ply::write(pCloud);
 
