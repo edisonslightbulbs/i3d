@@ -25,6 +25,7 @@ private:
 
     std::mutex m_pCloudMutex;
     std::mutex m_pCloudSegMutex;
+    std::mutex m_optimizedPCloudSegMutex;
 
     std::mutex m_pCloudFrameMutex;
     std::mutex m_pCloudSegFrameMutex;
@@ -47,6 +48,7 @@ private:
     std::shared_ptr<std::vector<Point>> sptr_pCloudSeg = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloud2x2Bin = nullptr;
     std::shared_ptr<std::vector<Point>> sptr_pCloudSeg2x2Bin = nullptr;
+    std::shared_ptr<std::vector<Point>> sptr_optimizedPCloudSeg = nullptr;
 
     k4a_float2_t* ptr_sensorTableData = nullptr;
     std::shared_ptr<uint8_t*> sptr_sensorImgData = nullptr;
@@ -182,12 +184,15 @@ public:
     void setPCloudSeg(const std::vector<Point>& points);
     std::shared_ptr<std::vector<Point>> getPCloudSeg();
 
+    void setOptimizedPCloudSeg(const std::vector<Point>& points);
+    std::shared_ptr<std::vector<Point>> getOptimizedPCloudSeg();
+
     void setPCloudSeg2x2Bin(const std::vector<Point>& points);
     __attribute__((unused)) std::shared_ptr<std::vector<Point>>
     getPCloudSeg2x2Bin();
 
     void setPCloudClusters(const t_clusters& clusters);
-    __attribute__((unused)) std::shared_ptr<t_clusters> getPCloudClusters();
+    std::shared_ptr<t_clusters> getPCloudClusters();
 
     void setColClusters(const std::pair<int16_t*, uint8_t*>& colClusters);
 
