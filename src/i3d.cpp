@@ -240,6 +240,18 @@ std::shared_ptr<std::vector<Point>> I3d::getPCloudSeg()
     return sptr_pCloudSeg;
 }
 
+void I3d::setOptimizedPCloudSeg(const std::vector<Point>& points)
+{
+    std::lock_guard<std::mutex> lck(m_optimizedPCloudSegMutex);
+    sptr_optimizedPCloudSeg = std::make_shared<std::vector<Point>>(points);
+}
+
+std::shared_ptr<std::vector<Point>> I3d::getOptimizedPCloudSeg()
+{
+    std::lock_guard<std::mutex> lck(m_optimizedPCloudSegMutex);
+    return sptr_optimizedPCloudSeg;
+}
+
 void I3d::setImgFrame_GL(const std::vector<uint8_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_imgFrameMutex_GL);
@@ -318,8 +330,7 @@ void I3d::setPCloudClusters(const t_clusters& clusters)
     sptr_pCloudClusters = std::make_shared<t_clusters>(clusters);
 }
 
-__attribute__((unused)) std::shared_ptr<I3d::t_clusters>
-I3d::getPCloudClusters()
+std::shared_ptr<I3d::t_clusters> I3d::getPCloudClusters()
 {
     std::lock_guard<std::mutex> lck(m_pCloudClusterMutex);
     return sptr_pCloudClusters;
@@ -446,6 +457,7 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
                 utils::addXYZ(i, pCloudSegFrame, ptr_sensorPCloudData);
                 utils::addPixel_GL(i, imgSegFrame_GL, ptr_sensorImgData);
                 utils::addPixel_CV(i, imgSegFrame_CV, ptr_sensorImgData);
+                point.m_id = index; // test
                 pCloudSeg[index] = point;
                 index++;
             } else {
@@ -457,11 +469,13 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
             pCloudSeg.begin(), pCloudSeg.begin() + index);
 
         sptr_i3d->setPCloud(pCloud);
+        sptr_i3d->setPCloudSeg(pCloudSeg);
         sptr_i3d->setPCloudFrame(pCloudFrame);
         sptr_i3d->setImgFrame_GL(imgFrame_GL);
         sptr_i3d->setImgFrame_CV(imgFrame_CV);
         sptr_i3d->setPCloudSegFrame(pCloudSegFrame);
         sptr_i3d->setImgSegFrame_GL(imgSegFrame_GL);
+        sptr_i3d->setOptimizedPCloudSeg(optimizedPCloudSeg);
         RAISE_SEGMENT_READY_FLAG
         STOP_TIMER(" frame region thread: runtime @ ")
     }
@@ -473,12 +487,10 @@ void I3d::clusterRegion(
 {
 #if CLUSTER_REGION == 1
     SLEEP_UNTIL_SEGMENT_READY
-    int w = sptr_i3d->getDepthWidth();
-    int h = sptr_i3d->getDepthHeight();
     START
     while (sptr_i3d->isRun()) {
         START_TIMER
-        std::vector<Point> points = *sptr_i3d->getPCloudSeg();
+        std::vector<Point> points = *sptr_i3d->getOptimizedPCloudSeg();
 
         // dbscan::cluster clusters candidate interaction regions
         //   from the segmented tabletop surface. It returns a
