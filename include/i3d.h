@@ -52,6 +52,7 @@ private:
 
     k4a_float2_t* ptr_sensorTableData = nullptr;
     std::shared_ptr<uint8_t*> sptr_sensorImgData = nullptr;
+    std::shared_ptr<uint8_t*> sptr_sensorC2DImgData = nullptr;
     std::shared_ptr<int16_t*> sptr_sensorPCloudData = nullptr;
     std::shared_ptr<uint16_t*> sptr_sensorDepthData = nullptr;
 
@@ -150,6 +151,9 @@ public:
 
     void setSensorTableData(k4a_float2_t* ptr_table);
     k4a_float2_t* getSensorTableData();
+
+    void setSensorC2DImgData(uint8_t* ptr_imgData);
+    std::shared_ptr<uint8_t*> getSensorC2DImgData();
 
     void setSensorImgData(uint8_t* ptr_imgData);
     std::shared_ptr<uint8_t*> getSensorImgData();
