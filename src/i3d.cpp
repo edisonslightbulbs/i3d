@@ -180,6 +180,19 @@ std::shared_ptr<uint8_t*> I3d::getSensorImgData()
     std::lock_guard<std::mutex> lck(m_sensorImgDataMutex);
     return sptr_sensorImgData;
 }
+
+void I3d::setSensorC2DImgData(uint8_t* ptr_imgData)
+{
+    std::lock_guard<std::mutex> lck(m_sensorImgDataMutex);
+    sptr_sensorC2DImgData = std::make_shared<uint8_t*>(ptr_imgData);
+}
+
+std::shared_ptr<uint8_t*> I3d::getSensorC2DImgData()
+{
+    std::lock_guard<std::mutex> lck(m_sensorImgDataMutex);
+    return sptr_sensorC2DImgData;
+}
+
 void I3d::setSensorPCloudData(int16_t* ptr_pclData)
 {
     std::lock_guard<std::mutex> lck(m_sensorPCloudDataMutex);
@@ -432,7 +445,7 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
     while (sptr_i3d->isRun()) {
         START_TIMER
         ptr_sensorPCloudData = *sptr_i3d->getSensorPCloudData();
-        ptr_sensorImgData = *sptr_i3d->getSensorImgData();
+        ptr_sensorImgData = *sptr_i3d->getSensorC2DImgData();
 
         int index = 0;
         for (int i = 0; i < w * h; i++) {
