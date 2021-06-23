@@ -1,6 +1,7 @@
 #include <cmath>
 #include <k4a/k4a.hpp>
 #include <opencv2/core.hpp>
+#include <random>
 #include <torch/script.h>
 
 #include "macros.hpp"
@@ -67,8 +68,8 @@ void utils::adapt(const int& index, Point& point,
 
     point.m_id = index;
     point.setPoint(xyz);
-    point.setPixel_GL(rgba);
-    point.setPixel_CV(bgra);
+    point.setPixel_RGBA(rgba);
+    point.setPixel_BGRA(bgra);
 }
 
 bool utils::null(const int& index, std::vector<int16_t>& pCloudFrame,
@@ -126,7 +127,7 @@ void utils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame)
     pCloudFrame[3 * index + 2] = 0;
 }
 
-void utils::addPixel_CV(const int& index, std::vector<uint8_t>& imgFrame_CV,
+void utils::addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
     const uint8_t* ptr_imgData)
 {
     imgFrame_CV[4 * index + 0] = ptr_imgData[4 * index + 0]; // blue
@@ -135,7 +136,7 @@ void utils::addPixel_CV(const int& index, std::vector<uint8_t>& imgFrame_CV,
     imgFrame_CV[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void utils::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL,
+void utils::addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
     const uint8_t* ptr_imgData)
 {
     imgFrame_GL[4 * index + 2] = ptr_imgData[4 * index + 0]; // blue
@@ -144,7 +145,7 @@ void utils::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL,
     imgFrame_GL[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void utils::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL)
+void utils::addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL)
 {
     imgFrame_GL[4 * index + 0] = 0; // red
     imgFrame_GL[4 * index + 1] = 0; // green
@@ -152,7 +153,7 @@ void utils::addPixel_GL(const int& index, std::vector<uint8_t>& imgFrame_GL)
     imgFrame_GL[4 * index + 3] = 0; // alpha
 }
 
-void utils::addPixel_CV(const int& index, std::vector<uint8_t>& imgFrame_CV)
+void utils::addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV)
 {
     imgFrame_CV[4 * index + 0] = 0; // red
     imgFrame_CV[4 * index + 1] = 0; // green
@@ -251,7 +252,7 @@ void utils::cvDisplay(
 
     cv::imshow("", img);
     if (cv::waitKey(1) == 27) {
-        STOP
+        sptr_i3d->raiseStopFlag();
     }
 }
 
@@ -276,4 +277,12 @@ void utils::add(std::vector<uint8_t*>& colors)
     colors.emplace_back(deepgreen);
     colors.emplace_back(othergreen);
     colors.emplace_back(black);
+}
+
+int utils::randNum(const int& max)
+{
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_real_distribution<double> dist(0, max);
+    return (int)dist(mt);
 }
