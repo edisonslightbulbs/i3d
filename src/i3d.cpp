@@ -120,6 +120,30 @@ void I3d::stop()
     *sptr_run = false;
 }
 
+void I3d::setImgHeight(const int& height)
+{
+    std::lock_guard<std::mutex> lck(m_imgDimensions);
+    m_imgHeight = height;
+}
+
+void I3d::setImgWidth(const int& width)
+{
+    std::lock_guard<std::mutex> lck(m_imgDimensions);
+    m_imgWidth = width;
+}
+
+int I3d::getImgWidth()
+{
+    std::lock_guard<std::mutex> lck(m_imgDimensions);
+    return m_imgWidth;
+}
+
+int I3d::getImgHeight()
+{
+    std::lock_guard<std::mutex> lck(m_imgDimensions);
+    return m_imgHeight;
+}
+////////////////////////////////
 void I3d::setDepthHeight(const int& height)
 {
     std::lock_guard<std::mutex> lck(m_depthDimensions);
@@ -375,7 +399,6 @@ void I3d::buildPCloud(std::shared_ptr<I3d>& sptr_i3d)
 
     std::vector<Point> pCloud(w * h);
     while (sptr_i3d->isRun()) {
-
         START_TIMER
         ptr_depthData = *sptr_i3d->getSensorDepthData();
         ptr_tableData = sptr_i3d->getSensorTableData();
@@ -423,7 +446,7 @@ void I3d::proposeRegion(std::shared_ptr<I3d>& sptr_i3d)
 void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
 {
 #if SEGMENT_REGION == 1
-    SLEEP_UNTIL_PROPOSAL_READY_FLAG
+    SLEEP_UNTIL_PROPOSAL_READY
     START
     int w = sptr_i3d->getDepthWidth();
     int h = sptr_i3d->getDepthHeight();
@@ -454,12 +477,12 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
             // create unsegmented assets
             if (utils::invalid(i, ptr_sensorPCloudData, ptr_sensorImgData)) {
                 utils::addXYZ(i, pCloudFrame);
-                utils::addPixel_GL(i, imgFrame_GL);
-                utils::addPixel_CV(i, imgFrame_CV);
+                utils::addPixel_RGBA(i, imgFrame_GL);
+                utils::addPixel_BGRA(i, imgFrame_CV);
             } else {
                 utils::addXYZ(i, pCloudFrame, ptr_sensorPCloudData);
-                utils::addPixel_GL(i, imgFrame_GL, ptr_sensorImgData);
-                utils::addPixel_CV(i, imgFrame_CV, ptr_sensorImgData);
+                utils::addPixel_RGBA(i, imgFrame_GL, ptr_sensorImgData);
+                utils::addPixel_BGRA(i, imgFrame_CV, ptr_sensorImgData);
             }
             utils::adapt(i, point, pCloudFrame, imgFrame_CV);
             pCloud[i] = point;
@@ -468,14 +491,14 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
             if (utils::inSegment(i, pCloudFrame, sptr_i3d->getBoundary().first,
                     sptr_i3d->getBoundary().second)) {
                 utils::addXYZ(i, pCloudSegFrame, ptr_sensorPCloudData);
-                utils::addPixel_GL(i, imgSegFrame_GL, ptr_sensorImgData);
-                utils::addPixel_CV(i, imgSegFrame_CV, ptr_sensorImgData);
+                utils::addPixel_RGBA(i, imgSegFrame_GL, ptr_sensorImgData);
+                utils::addPixel_BGRA(i, imgSegFrame_CV, ptr_sensorImgData);
                 point.m_id = index; // test
                 pCloudSeg[index] = point;
                 index++;
             } else {
                 utils::addXYZ(i, pCloudSegFrame);
-                utils::addPixel_GL(i, imgSegFrame_GL);
+                utils::addPixel_RGBA(i, imgSegFrame_GL);
             }
         }
         std::vector<Point> optimizedPCloudSeg(
