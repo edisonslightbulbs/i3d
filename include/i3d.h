@@ -12,10 +12,14 @@
 class I3d {
 
 public:
+    int m_imgWidth {};
+    int m_imgHeight {};
+
     int m_depthWidth {};
     int m_depthHeight {};
 
 private:
+    std::mutex m_imgDimensions;
     std::mutex m_depthDimensions;
 
     std::mutex m_sensorTableDataMutex;
@@ -140,6 +144,11 @@ public:
     void raiseSensorReadyFlag();
     void raiseProposalReadyFlag();
     void raisePCloudReadyFlag();
+
+    int getImgWidth();
+    int getImgHeight();
+    void setImgWidth(const int& width);
+    void setImgHeight(const int& height);
 
     int getDepthWidth();
     int getDepthHeight();
