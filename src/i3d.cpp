@@ -289,7 +289,7 @@ std::shared_ptr<std::vector<Point>> I3d::getOptimizedPCloudSeg()
     return sptr_optimizedPCloudSeg;
 }
 
-void I3d::setImgFrame_GL(const std::vector<uint8_t>& frame)
+void I3d::setImgFrame_RGBA(const std::vector<uint8_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_imgFrameMutex_GL);
     sptr_imgFrame_GL = std::make_shared<std::vector<uint8_t>>(frame);
@@ -337,7 +337,7 @@ std::shared_ptr<std::vector<int16_t>> I3d::getPCloudSegFrame()
     return sptr_pCloudSegFrame;
 }
 
-void I3d::setImgSegFrame_GL(const std::vector<uint8_t>& frame)
+void I3d::setImgSegFrame_RGBA(const std::vector<uint8_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_imgSegFrameMutex_GL);
     sptr_imgFrameSeg_GL = std::make_shared<std::vector<uint8_t>>(frame);
@@ -349,7 +349,7 @@ std::shared_ptr<std::vector<uint8_t>> I3d::getImgSegFrame_GL()
     return sptr_imgFrameSeg_GL;
 }
 
-void I3d::setImgFrame_CV(const std::vector<uint8_t>& frame)
+void I3d::setImgFrame_BGRA(const std::vector<uint8_t>& frame)
 {
     std::lock_guard<std::mutex> lck(m_imgSegFrameMutex_CV);
     sptr_imgFrame_CV = std::make_shared<std::vector<uint8_t>>(frame);
@@ -455,50 +455,51 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
     std::vector<Point> pCloudSeg(w * h);
 
     std::vector<int16_t> pCloudFrame(w * h * 3);
-    std::vector<uint8_t> imgFrame_GL(w * h * 4);
-    std::vector<uint8_t> imgFrame_CV(w * h * 4);
+    std::vector<uint8_t> imgFrame_RGBA(w * h * 4);
+    std::vector<uint8_t> imgFrame_BGRA(w * h * 4);
 
     std::vector<int16_t> pCloudSegFrame(w * h * 3);
-    std::vector<uint8_t> imgSegFrame_GL(w * h * 4);
-    std::vector<uint8_t> imgSegFrame_CV(w * h * 4);
+    std::vector<uint8_t> imgSegFrame_RGBA(w * h * 4);
+    std::vector<uint8_t> imgSegFrame_BGRA(w * h * 4);
 
-    uint8_t* ptr_sensorImgData;
+    uint8_t* ptr_sensorC2DData;
     int16_t* ptr_sensorPCloudData;
 
     while (sptr_i3d->isRun()) {
         START_TIMER
         ptr_sensorPCloudData = *sptr_i3d->getSensorPCloudData();
-        ptr_sensorImgData = *sptr_i3d->getSensorC2DImgData();
+        ptr_sensorC2DData = *sptr_i3d->getSensorC2DImgData();
 
         int index = 0;
         for (int i = 0; i < w * h; i++) {
             Point point;
 
             // create unsegmented assets
-            if (utils::invalid(i, ptr_sensorPCloudData, ptr_sensorImgData)) {
+            if (utils::invalid(i, ptr_sensorPCloudData, ptr_sensorC2DData)) {
                 utils::addXYZ(i, pCloudFrame);
-                utils::addPixel_RGBA(i, imgFrame_GL);
-                utils::addPixel_BGRA(i, imgFrame_CV);
+                utils::addPixel_RGBA(i, imgFrame_RGBA);
+                utils::addPixel_BGRA(i, imgFrame_BGRA);
             } else {
                 utils::addXYZ(i, pCloudFrame, ptr_sensorPCloudData);
-                utils::addPixel_RGBA(i, imgFrame_GL, ptr_sensorImgData);
-                utils::addPixel_BGRA(i, imgFrame_CV, ptr_sensorImgData);
+                utils::addPixel_RGBA(i, imgFrame_RGBA, ptr_sensorC2DData);
+                utils::addPixel_BGRA(i, imgFrame_BGRA, ptr_sensorC2DData);
             }
-            utils::adapt(i, point, pCloudFrame, imgFrame_CV);
+            utils::adapt(i, point, pCloudFrame, imgFrame_BGRA);
             pCloud[i] = point;
 
             // create segmented assets
             if (utils::inSegment(i, pCloudFrame, sptr_i3d->getBoundary().first,
                     sptr_i3d->getBoundary().second)) {
                 utils::addXYZ(i, pCloudSegFrame, ptr_sensorPCloudData);
-                utils::addPixel_RGBA(i, imgSegFrame_GL, ptr_sensorImgData);
-                utils::addPixel_BGRA(i, imgSegFrame_CV, ptr_sensorImgData);
-                point.m_id = index; // test
+                utils::addPixel_RGBA(i, imgSegFrame_RGBA, ptr_sensorC2DData);
+                utils::addPixel_BGRA(i, imgSegFrame_BGRA, ptr_sensorC2DData);
+                // point.m_id = index; // test
                 pCloudSeg[index] = point;
                 index++;
             } else {
                 utils::addXYZ(i, pCloudSegFrame);
-                utils::addPixel_RGBA(i, imgSegFrame_GL);
+                utils::addPixel_RGBA(i, imgSegFrame_RGBA);
+                utils::addPixel_BGRA(i, imgSegFrame_BGRA);
             }
         }
         std::vector<Point> optimizedPCloudSeg(
@@ -507,10 +508,10 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
         sptr_i3d->setPCloud(pCloud);
         sptr_i3d->setPCloudSeg(pCloudSeg);
         sptr_i3d->setPCloudFrame(pCloudFrame);
-        sptr_i3d->setImgFrame_GL(imgFrame_GL);
-        sptr_i3d->setImgFrame_CV(imgFrame_CV);
+        sptr_i3d->setImgFrame_RGBA(imgFrame_RGBA);
+        sptr_i3d->setImgFrame_BGRA(imgFrame_BGRA);
         sptr_i3d->setPCloudSegFrame(pCloudSegFrame);
-        sptr_i3d->setImgSegFrame_GL(imgSegFrame_GL);
+        sptr_i3d->setImgSegFrame_RGBA(imgSegFrame_RGBA);
         sptr_i3d->setOptimizedPCloudSeg(optimizedPCloudSeg);
         RAISE_SEGMENT_READY_FLAG
         STOP_TIMER(" frame region thread: runtime @ ")
