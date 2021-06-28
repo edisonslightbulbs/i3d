@@ -24,6 +24,8 @@ void write(std::vector<Point>& pCloud, std::vector<Point>& pCloudSeg);
 
 void write(std::vector<Point>& points);
 
+void write1(std::vector<Point>& points);
+
 void write(k4a_image_t const& pclImage, k4a_image_t const& rgbImage,
     const std::string& FILE);
 }
