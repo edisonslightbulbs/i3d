@@ -160,19 +160,19 @@ public:
     void setPCloud2x2Bin(const std::vector<Point>& points);
     std::shared_ptr<std::vector<Point>> getPCloud2x2Bin();
 
-    void setImgFrame_CV(const std::vector<uint8_t>& frame);
+    void setImgFrame_BGRA(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgFrame_CV();
 
     void setPCloudFrame(const std::vector<int16_t>& frame);
     std::shared_ptr<std::vector<int16_t>> getPCloudFrame();
 
-    void setImgFrame_GL(const std::vector<uint8_t>& frame);
+    void setImgFrame_RGBA(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgFrame_GL();
 
     void setPCloudSegFrame(const std::vector<int16_t>& frame);
     std::shared_ptr<std::vector<int16_t>> getPCloudSegFrame();
 
-    void setImgSegFrame_GL(const std::vector<uint8_t>& frame);
+    void setImgSegFrame_RGBA(const std::vector<uint8_t>& frame);
     std::shared_ptr<std::vector<uint8_t>> getImgSegFrame_GL();
 
     void setI3dBoundary(std::pair<Point, Point>& boundary);
