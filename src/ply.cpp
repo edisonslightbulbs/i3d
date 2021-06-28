@@ -210,3 +210,25 @@ void ply::write(std::vector<Point>& points)
     std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
+
+void ply::write1(std::vector<Point>& points)
+{
+    const std::string FILE = io::pwd() + "/output/context1.ply";
+
+    /** write to file */
+    PLY_HEADER;
+    std::stringstream ss;
+    for (const auto& point : points) {
+        std::string x = std::to_string(point.m_xyz[0]);
+        std::string y = std::to_string(point.m_xyz[1]);
+        std::string z = std::to_string(point.m_xyz[2]);
+        std::string r = std::to_string(point.m_rgba[0]);
+        std::string g = std::to_string(point.m_rgba[1]);
+        std::string b = std::to_string(point.m_rgba[2]);
+
+        ss << x << " " << y << " " << z << " " << r << " " << g << " " << b
+           << std::endl;
+    }
+    std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
+    ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
+}
