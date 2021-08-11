@@ -3,6 +3,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unistd.h>
 
