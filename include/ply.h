@@ -22,11 +22,15 @@ void write(const Point& lowerBound, const Point& upperBound,
 
 void write(std::vector<Point>& pCloud, std::vector<Point>& pCloudSeg);
 
-void write(std::vector<Point>& points);
-
 void write1(std::vector<Point>& points);
 
 void write(k4a_image_t const& pclImage, k4a_image_t const& rgbImage,
     const std::string& FILE);
+
+    void write(std::vector<Point> &points, const std::string &FILE);
+
+    std::vector<Point> build(const int &w, const int &h, const int16_t *pCloudData, const uint8_t *bgra);
+
+    void write(const int &w, const int &h, const int16_t *pCloudData, const uint8_t *rgbData, const std::string &FILE);
 }
 #endif /* PLY_H */
