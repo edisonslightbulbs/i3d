@@ -1,8 +1,8 @@
 #ifndef INTACT_UTILS_H
 #define INTACT_UTILS_H
 
-#include <opencv2/core.hpp>
-#include <opencv2/opencv.hpp>
+// #include <opencv2/core.hpp>
+// #include <opencv2/opencv.hpp>
 #include <string>
 #include <thread>
 #include <torch/script.h>
@@ -53,7 +53,7 @@ std::pair<Point, Point> queryBoundary(std::vector<Point>& points);
 
 void stitch(const int& index, Point& point, uint8_t* ptr_img_CV);
 
-void cvDisplay(cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start);
+// void cvDisplay(cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start);
 
 void add(std::vector<uint8_t*>& colors);
 
