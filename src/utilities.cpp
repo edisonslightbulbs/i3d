@@ -1,6 +1,6 @@
 #include <cmath>
 #include <k4a/k4a.hpp>
-#include <opencv2/core.hpp>
+// #include <opencv2/core.hpp>
 #include <random>
 #include <torch/script.h>
 
@@ -241,20 +241,20 @@ std::pair<Point, Point> utils::queryBoundary(std::vector<Point>& points)
     return { min, max };
 }
 
-// todo: move to viewer
-void utils::cvDisplay(
-    cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start)
-{
-    cv::putText(img,
-        "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
-        cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0),
-        2);
-
-    cv::imshow("", img);
-    if (cv::waitKey(1) == 27) {
-        sptr_i3d->raiseStopFlag();
-    }
-}
+// // todo: move to viewer
+// void utils::cvDisplay(
+//     cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start)
+// {
+//     cv::putText(img,
+//         "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
+//         cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255,
+//         0), 2);
+//
+//     cv::imshow("", img);
+//     if (cv::waitKey(1) == 27) {
+//         sptr_i3d->raiseStopFlag();
+//     }
+// }
 
 void utils::add(std::vector<uint8_t*>& colors)
 {
