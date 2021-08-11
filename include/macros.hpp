@@ -17,7 +17,7 @@
         sptr_i3d->raiseSensorReadyFlag();                                      \
     }
 
-#define SLEEP_UNTIL_POINTCLOUD_READY                                           \
+#define WAIT_FOR_FAST_POINTCLOUD                                               \
     while (!sptr_i3d->isPCloudReady()) {                                       \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
@@ -29,24 +29,29 @@
         sptr_i3d->raisePCloudReadyFlag();                                      \
     }
 
-#define SLEEP_UNTIL_PROPOSAL_READY                                             \
+#define WAIT_FOR_PROPOSAL                                                      \
     while (!sptr_i3d->isProposalReady()) {                                     \
         std::this_thread::sleep_for(std::chrono::microseconds(1));             \
     }
 
-#define RAISE_PROPOSAL_READY_FLAG                                              \
+#define POINTCLOUD_READY                                                       \
     if (init) {                                                                \
         init = false;                                                          \
         LOG(INFO) << "-- proposing region ";                                   \
         sptr_i3d->raiseProposalReadyFlag();                                    \
     }
 
-#define SLEEP_UNTIL_SEGMENT_READY                                              \
+#define WAIT_FOR_COLOR_POINTCLOUD                                              \
     while (!sptr_i3d->isSegmented()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define RAISE_SEGMENT_READY_FLAG                                               \
+#define WAIT_FOR_SEGMENT                                                       \
+    while (!sptr_i3d->isSegmented()) {                                         \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define PROPOSAL_READY                                                         \
     if (init) {                                                                \
         init = false;                                                          \
         LOG(INFO) << "-- segmenting region";                                   \
@@ -58,7 +63,7 @@
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define RAISE_CLUSTERS_READY_FLAG                                              \
+#define CLUSTERS_READY                                                         \
     if (init) {                                                                \
         init = false;                                                          \
         LOG(INFO) << "-- clustering region";                                   \
