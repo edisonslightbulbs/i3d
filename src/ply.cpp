@@ -189,11 +189,8 @@ void ply::write(std::vector<Point>& pCloud, std::vector<Point>& pCloudSeg)
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
-void ply::write(std::vector<Point>& points)
+void ply::write(std::vector<Point>& points, const std::string& FILE)
 {
-    const std::string FILE = io::pwd() + "/output/context.ply";
-
-    /** write to file */
     PLY_HEADER;
     std::stringstream ss;
     for (const auto& point : points) {
@@ -228,6 +225,58 @@ void ply::write1(std::vector<Point>& points)
 
         ss << x << " " << y << " " << z << " " << r << " " << g << " " << b
            << std::endl;
+    }
+    std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
+    ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
+}
+
+std::vector<Point> ply::build(
+    const int& w, const int& h, const int16_t* pCloudData, const uint8_t* bgra)
+{
+    std::vector<Point> pCloud;
+    for (int i = 0; i < w * h; i++) {
+        Point point {};
+        point.m_xyz[0] = pCloudData[3 * i + 0];
+        point.m_xyz[1] = pCloudData[3 * i + 1];
+        point.m_xyz[2] = pCloudData[3 * i + 2];
+        if (point.m_xyz[2] == 0) {
+            continue;
+        }
+        uint8_t r = bgra[4 * i + 2];
+        uint8_t g = bgra[4 * i + 1];
+        uint8_t b = bgra[4 * i + 0];
+        uint8_t a = bgra[4 * i + 3];
+        uint8_t rgba[4] = { r, g, b, a };
+        point.setPixel_RGBA(rgba);
+
+        if (point.m_rgba[0] == 0 && point.m_rgba[1] == 0 && point.m_rgba[2] == 0
+            && point.m_rgba[3] == 0) {
+            continue;
+        }
+        pCloud.push_back(point);
+    }
+    return pCloud;
+}
+
+void ply::write(const int& w, const int& h, const int16_t* pCloudData,
+    const uint8_t* rgbData, const std::string& FILE)
+{
+    std::vector<Point> points = build(w, h, pCloudData, rgbData);
+
+    PLY_HEADER;
+    std::stringstream ss;
+    for (auto& point : points) {
+        int16_t x = point.m_xyz[0];
+        int16_t y = point.m_xyz[1];
+        int16_t z = point.m_xyz[2];
+
+        // k4a color image is in fact BGR (not RGB)
+        auto r = (float)point.m_rgba[2];
+        auto g = (float)point.m_rgba[1];
+        auto b = (float)point.m_rgba[0];
+
+        ss << x << " " << y << " " << z << " ";
+        ss << r << " " << g << " " << b << std::endl;
     }
     std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
