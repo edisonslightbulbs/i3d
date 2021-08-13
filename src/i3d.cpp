@@ -326,7 +326,7 @@ void i3d::setXYZSeg(const std::vector<int16_t>& xyz)
     sptr_XYZSeg = std::make_shared<std::vector<int16_t>>(xyz);
 }
 
-std::shared_ptr<std::vector<int16_t>> i3d::getPCloudSegFrame()
+std::shared_ptr<std::vector<int16_t>> i3d::getXYZSeg()
 {
     std::lock_guard<std::mutex> lck(m_XYZSegMutex);
     return sptr_XYZSeg;
@@ -433,7 +433,7 @@ void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
         std::pair<Point, Point> boundary = i3dutils::queryBoundary(pCloudSeg);
         sptr_i3d->setPCloudSeg2x2Bin(pCloudSeg);
         sptr_i3d->setSegBoundary(boundary);
-        POINTCLOUD_READY
+        FAST_POINTCLOUD_READY
         STOP_TIMER(" propose region thread: runtime @ ")
     }
 #endif
@@ -509,7 +509,7 @@ void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
         sptr_i3d->setXYZSeg(xyzSeg);
         sptr_i3d->setRGBASeg(rgbaSeg);
         sptr_i3d->setOptimizedPCloudSeg(optimizedPCloudSeg);
-        PROPOSAL_READY
+        SEGMENT_READY
         STOP_TIMER(" frame region thread: runtime @ ")
     }
 #endif
