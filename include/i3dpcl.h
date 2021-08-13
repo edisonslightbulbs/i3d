@@ -15,7 +15,7 @@
  *   Interaction context 3D point cloud.
  */
 
-namespace pcl {
+namespace i3dpcl {
 void write(const Point& lowerBound, const Point& upperBound,
     const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
     const std::string& file);
