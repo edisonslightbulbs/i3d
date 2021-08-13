@@ -4,13 +4,13 @@
 #include <chrono>
 #include <string>
 
-class Timer {
+class i3dtimer {
 private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
 
 public:
-    Timer();
-    ~Timer() = default;
+    i3dtimer();
+    ~i3dtimer() = default;
     std::string getDuration();
 };
 

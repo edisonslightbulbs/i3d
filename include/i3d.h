@@ -37,9 +37,9 @@ private:
     std::mutex m_pCloudSeg2x2BinMutex;
 
     std::mutex m_RGBAMutex;
+    std::mutex m_BGRAMutex;
 
     std::mutex m_RGBASegMutex;
-    std::mutex m_BGRAMutex;
 
     std::mutex m_boundaryMutex;
 
