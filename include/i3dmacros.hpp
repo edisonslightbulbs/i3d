@@ -34,14 +34,19 @@
         std::this_thread::sleep_for(std::chrono::microseconds(1));             \
     }
 
-#define POINTCLOUD_READY                                                       \
+#define FAST_POINTCLOUD_READY                                                  \
     if (init) {                                                                \
         init = false;                                                          \
         LOG(INFO) << "-- proposing region ";                                   \
         sptr_i3d->raiseProposalReadyFlag();                                    \
     }
 
-#define WAIT_FOR_COLOR_POINTCLOUD                                              \
+#define WAIT_FOR_C2D_POINTCLOUD                                                \
+    while (!sptr_i3d->isSegmented()) {                                         \
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
+    }
+
+#define WAIT_FOR_C2D_TRANSFORMATION                                            \
     while (!sptr_i3d->isSegmented()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
@@ -51,14 +56,14 @@
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
 
-#define PROPOSAL_READY                                                         \
+#define SEGMENT_READY                                                          \
     if (init) {                                                                \
         init = false;                                                          \
         LOG(INFO) << "-- segmenting region";                                   \
         sptr_i3d->raiseSegmentedFlag();                                        \
     }
 
-#define SLEEP_UNTIL_CLUSTERS_READY                                             \
+#define WAIT_FOR_CLUSTERS                                                      \
     while (!sptr_i3d->isClustered()) {                                         \
         std::this_thread::sleep_for(std::chrono::milliseconds(3));             \
     }
@@ -76,7 +81,7 @@
     }
 
 #define START bool init = true;
-#define RUN sptr_i3d->isRun() && !sptr_i3d->isSegmented()
+#define RUN sptr_i3d->isRun() && !sptr_i3d->isStop()
 
 // #define STOP                                                                   \
 //     sptr_i3d->stop();                                                          \
