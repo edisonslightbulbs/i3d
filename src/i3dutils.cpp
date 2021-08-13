@@ -4,9 +4,9 @@
 #include <random>
 #include <torch/script.h>
 
-#include "macros.hpp"
+#include "i3dmacros.hpp"
+#include "i3dutils.h"
 #include "point.h"
-#include "utilities.h"
 
 // colors handy for coloring clusters:
 // see@ https://colorbrewer2.org/#type=diverging&scheme=RdYlBu&n=9
@@ -36,7 +36,7 @@ __attribute__((unused)) uint8_t deepgreen[3] = { 53, 151, 143 };
 __attribute__((unused)) uint8_t othergreen[3] = { 1, 102, 94 };
 __attribute__((unused)) uint8_t black[3] = { 0, 0, 0 };
 
-void utils::configTorch(
+void i3dutils::configTorch(
     std::vector<std::string>& classNames, torch::jit::script::Module& module)
 {
     const std::string scriptName = io::pwd() + "/resources/torchscript.pt";
@@ -49,7 +49,7 @@ void utils::configTorch(
     }
 }
 
-void utils::adapt(const int& index, Point& point,
+void i3dutils::adapt(const int& index, Point& point,
     const std::vector<int16_t>& pCloudFrame,
     const std::vector<uint8_t>& imgFrame)
 {
@@ -72,7 +72,7 @@ void utils::adapt(const int& index, Point& point,
     point.setPixel_BGRA(bgra);
 }
 
-bool utils::null(const int& index, std::vector<int16_t>& pCloudFrame,
+bool i3dutils::null(const int& index, std::vector<int16_t>& pCloudFrame,
     std::vector<uint8_t>& imgFrame)
 {
     if (pCloudFrame[3 * index + 2] == 0 && imgFrame[4 * index + 3] == 0) {
@@ -81,7 +81,7 @@ bool utils::null(const int& index, std::vector<int16_t>& pCloudFrame,
     return false;
 }
 
-bool utils::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
+bool i3dutils::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
     const uint16_t* ptr_depth)
 {
     if (ptr_depth[index] == 0 && std::isnan(ptr_xyTable[index].xy.x)
@@ -99,7 +99,7 @@ bool utils::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
     return false;
 }
 
-bool utils::invalid(
+bool i3dutils::invalid(
     const int& index, const int16_t* ptr_pCloudData, const uint8_t* ptr_imgData)
 {
     if (ptr_pCloudData[3 * index + 2] == 0
@@ -112,7 +112,7 @@ bool utils::invalid(
     return false;
 }
 
-void utils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame,
+void i3dutils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame,
     const int16_t* ptr_pCloudData)
 {
     pCloudFrame[3 * index + 0] = ptr_pCloudData[3 * index + 0];
@@ -120,15 +120,15 @@ void utils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame,
     pCloudFrame[3 * index + 2] = ptr_pCloudData[3 * index + 2];
 }
 
-void utils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame)
+void i3dutils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame)
 {
     pCloudFrame[3 * index + 0] = 0;
     pCloudFrame[3 * index + 1] = 0;
     pCloudFrame[3 * index + 2] = 0;
 }
 
-void utils::addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
-    const uint8_t* ptr_imgData)
+void i3dutils::addPixel_BGRA(const int& index,
+    std::vector<uint8_t>& imgFrame_CV, const uint8_t* ptr_imgData)
 {
     imgFrame_CV[4 * index + 0] = ptr_imgData[4 * index + 0]; // blue
     imgFrame_CV[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
@@ -136,8 +136,8 @@ void utils::addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
     imgFrame_CV[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void utils::addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
-    const uint8_t* ptr_imgData)
+void i3dutils::addPixel_RGBA(const int& index,
+    std::vector<uint8_t>& imgFrame_GL, const uint8_t* ptr_imgData)
 {
     imgFrame_GL[4 * index + 2] = ptr_imgData[4 * index + 0]; // blue
     imgFrame_GL[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
@@ -145,7 +145,8 @@ void utils::addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
     imgFrame_GL[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void utils::addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL)
+void i3dutils::addPixel_RGBA(
+    const int& index, std::vector<uint8_t>& imgFrame_GL)
 {
     imgFrame_GL[4 * index + 0] = 0; // red
     imgFrame_GL[4 * index + 1] = 0; // green
@@ -153,7 +154,8 @@ void utils::addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL)
     imgFrame_GL[4 * index + 3] = 0; // alpha
 }
 
-void utils::addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV)
+void i3dutils::addPixel_BGRA(
+    const int& index, std::vector<uint8_t>& imgFrame_CV)
 {
     imgFrame_CV[4 * index + 0] = 0; // red
     imgFrame_CV[4 * index + 1] = 0; // green
@@ -161,8 +163,9 @@ void utils::addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV)
     imgFrame_CV[4 * index + 3] = 0; // alpha
 }
 
-bool utils::inSegment(const int& index, const std::vector<int16_t>& pCloudFrame,
-    const Point& minPoint, const Point& maxPoint)
+bool i3dutils::inSegment(const int& index,
+    const std::vector<int16_t>& pCloudFrame, const Point& minPoint,
+    const Point& maxPoint)
 {
     if (pCloudFrame[3 * index + 2] == 0) {
         return false;
@@ -179,7 +182,7 @@ bool utils::inSegment(const int& index, const std::vector<int16_t>& pCloudFrame,
     return true;
 }
 
-void utils::stitch(const int& index, Point& point, int16_t* ptr_pCloud,
+void i3dutils::stitch(const int& index, Point& point, int16_t* ptr_pCloud,
     uint8_t* ptr_img_GL, uint8_t* ptr_img_CV)
 {
     ptr_pCloud[3 * index + 0] = point.m_xyz[0]; // x
@@ -197,8 +200,8 @@ void utils::stitch(const int& index, Point& point, int16_t* ptr_pCloud,
     ptr_img_GL[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
-void utils::stitch(const int& index, Point& point, std::vector<int16_t>& pCloud,
-    std::vector<uint8_t> image_GL)
+void i3dutils::stitch(const int& index, Point& point,
+    std::vector<int16_t>& pCloud, std::vector<uint8_t> image_GL)
 {
     pCloud[3 * index + 0] = point.m_xyz[0]; // x
     pCloud[3 * index + 1] = point.m_xyz[1]; // y
@@ -210,7 +213,7 @@ void utils::stitch(const int& index, Point& point, std::vector<int16_t>& pCloud,
     image_GL[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
-void utils::stitch(const int& index, Point& point, uint8_t* ptr_img_CV)
+void i3dutils::stitch(const int& index, Point& point, uint8_t* ptr_img_CV)
 {
     ptr_img_CV[4 * index + 0] = point.m_bgra[0]; // blue
     ptr_img_CV[4 * index + 1] = point.m_bgra[1]; // green
@@ -218,7 +221,7 @@ void utils::stitch(const int& index, Point& point, uint8_t* ptr_img_CV)
     ptr_img_CV[4 * index + 3] = point.m_bgra[3]; // alpha
 }
 
-std::pair<Point, Point> utils::queryBoundary(std::vector<Point>& points)
+std::pair<Point, Point> i3dutils::queryBoundary(std::vector<Point>& points)
 {
     std::vector<int16_t> X(points.size());
     std::vector<int16_t> Y(points.size());
@@ -256,7 +259,7 @@ std::pair<Point, Point> utils::queryBoundary(std::vector<Point>& points)
 //     }
 // }
 
-void utils::add(std::vector<uint8_t*>& colors)
+void i3dutils::add(std::vector<uint8_t*>& colors)
 {
     colors.emplace_back(red);
     colors.emplace_back(orange);
@@ -279,7 +282,7 @@ void utils::add(std::vector<uint8_t*>& colors)
     colors.emplace_back(black);
 }
 
-int utils::randNum(const int& max)
+int i3dutils::randNum(const int& max)
 {
     std::random_device rd;
     std::mt19937 mt(rd());
