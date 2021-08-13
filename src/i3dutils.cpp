@@ -127,8 +127,8 @@ void i3dutils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame)
     pCloudFrame[3 * index + 2] = 0;
 }
 
-void i3dutils::addPixel_BGRA(const int& index,
-    std::vector<uint8_t>& imgFrame_CV, const uint8_t* ptr_imgData)
+void i3dutils::addBGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
+    const uint8_t* ptr_imgData)
 {
     imgFrame_CV[4 * index + 0] = ptr_imgData[4 * index + 0]; // blue
     imgFrame_CV[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
@@ -136,8 +136,8 @@ void i3dutils::addPixel_BGRA(const int& index,
     imgFrame_CV[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void i3dutils::addPixel_RGBA(const int& index,
-    std::vector<uint8_t>& imgFrame_GL, const uint8_t* ptr_imgData)
+void i3dutils::addRGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
+    const uint8_t* ptr_imgData)
 {
     imgFrame_GL[4 * index + 2] = ptr_imgData[4 * index + 0]; // blue
     imgFrame_GL[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
@@ -145,8 +145,7 @@ void i3dutils::addPixel_RGBA(const int& index,
     imgFrame_GL[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void i3dutils::addPixel_RGBA(
-    const int& index, std::vector<uint8_t>& imgFrame_GL)
+void i3dutils::addRGBA(const int& index, std::vector<uint8_t>& imgFrame_GL)
 {
     imgFrame_GL[4 * index + 0] = 0; // red
     imgFrame_GL[4 * index + 1] = 0; // green
@@ -154,8 +153,7 @@ void i3dutils::addPixel_RGBA(
     imgFrame_GL[4 * index + 3] = 0; // alpha
 }
 
-void i3dutils::addPixel_BGRA(
-    const int& index, std::vector<uint8_t>& imgFrame_CV)
+void i3dutils::addBGRA(const int& index, std::vector<uint8_t>& imgFrame_CV)
 {
     imgFrame_CV[4 * index + 0] = 0; // red
     imgFrame_CV[4 * index + 1] = 0; // green
