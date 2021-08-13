@@ -10,7 +10,7 @@
 #include "i3d.h"
 #include "io.h"
 
-namespace utils {
+namespace i3dutils {
 
 void configTorch(
     std::vector<std::string>& classNames, torch::jit::script::Module& module);

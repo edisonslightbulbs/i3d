@@ -2,7 +2,7 @@
 #define INTACT_MACROS_HPP
 
 #include "logger.h"
-#include "ply.h"
+#include "pcl.h"
 #include "timer.h"
 
 #define SLEEP_UNTIL_SENSOR_DATA_READY                                          \
@@ -76,12 +76,13 @@
     }
 
 #define START bool init = true;
-#define RUN sptr_i3d->isRun()
-#define STOP                                                                   \
-    sptr_i3d->stop();                                                          \
-    sptr_i3d->raiseStopFlag();                                                 \
-    std::this_thread::sleep_for(std::chrono::seconds(3));                      \
-    exit(0);
+#define RUN sptr_i3d->isRun() && !sptr_i3d->isSegmented()
+
+// #define STOP                                                                   \
+//     sptr_i3d->stop();                                                          \
+//     sptr_i3d->raiseStopFlag();                                                 \
+//     std::this_thread::sleep_for(std::chrono::seconds(3));                      \
+//     exit(0);
 
 #define BENCHMARK 0
 #if BENCHMARK == 1
