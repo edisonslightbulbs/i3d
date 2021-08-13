@@ -33,15 +33,15 @@ void addXYZ(const int& index, std::vector<int16_t>& pCloudFrame);
 void addXYZ(const int& index, std::vector<int16_t>& pCloudFrame,
     const int16_t* ptr_pCloudData);
 
-void addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL);
+void addRGBA(const int& index, std::vector<uint8_t>& imgFrame_GL);
 
-void addPixel_RGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
+void addRGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
     const uint8_t* ptr_imgData);
 
-void addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
+void addBGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
     const uint8_t* ptr_imgData);
 
-void addPixel_BGRA(const int& index, std::vector<uint8_t>& imgFrame_CV);
+void addBGRA(const int& index, std::vector<uint8_t>& imgFrame_CV);
 
 bool inSegment(const int& index, const std::vector<int16_t>& pCloudFrame,
     const Point& minPoint, const Point& maxPoint);
