@@ -68,8 +68,8 @@ void i3dutils::adapt(const int& index, Point& point,
 
     point.m_id = index;
     point.setPoint(xyz);
-    point.setPixel_RGBA(rgba);
-    point.setPixel_BGRA(bgra);
+    point.setRGBA(rgba);
+    point.setBGRA(bgra);
 }
 
 bool i3dutils::null(const int& index, std::vector<int16_t>& pCloudFrame,
