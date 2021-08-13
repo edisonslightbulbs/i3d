@@ -14,7 +14,7 @@
 #include "region.h"
 #include "svd.h"
 
-I3d::I3d()
+i3d::i3d()
 {
     Point i3dMaxBound(SHRT_MAX, SHRT_MAX, SHRT_MAX);
     Point i3dMinBound(SHRT_MIN, SHRT_MIN, SHRT_MIN);
@@ -30,345 +30,345 @@ I3d::I3d()
     sptr_resourcesReady = std::make_shared<bool>(false);
 }
 
-bool I3d::isRun()
+bool i3d::isRun()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_run;
 }
 
-void I3d::raiseRunFlag()
+void i3d::raiseRunFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_run = true;
 }
 
-bool I3d::isSensorReady()
+bool i3d::isSensorReady()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_resourcesReady;
 }
 
-void I3d::raiseSensorReadyFlag()
+void i3d::raiseSensorReadyFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_resourcesReady = true;
 }
 
-bool I3d::isSegmented()
+bool i3d::isSegmented()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_segmented;
 }
 
-bool I3d::isProposalReady()
+bool i3d::isProposalReady()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_proposalReady;
 }
 
-void I3d::raiseProposalReadyFlag()
+void i3d::raiseProposalReadyFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_proposalReady = true;
 }
 
-void I3d::raiseSegmentedFlag()
+void i3d::raiseSegmentedFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_segmented = true;
 }
 
-bool I3d::isPCloudReady()
+bool i3d::isPCloudReady()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_pCloudReady;
 }
 
-void I3d::raisePCloudReadyFlag()
+void i3d::raisePCloudReadyFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_pCloudReady = true;
 }
 
-bool I3d::isClustered()
+bool i3d::isClustered()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_clustered;
 }
 
-void I3d::raiseClusteredFlag()
+void i3d::raiseClusteredFlag()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_clustered = true;
 }
 
-bool I3d::isStop()
+bool i3d::isStop()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     return *sptr_stop;
 }
 
-void I3d::stop()
+void i3d::stop()
 {
     std::lock_guard<std::mutex> lck(m_flagMutex);
     *sptr_run = false;
     *sptr_stop = true;
 }
 
-void I3d::setRGBAHeight(const int& height)
+void i3d::setRGBAHeight(const int& height)
 {
     std::lock_guard<std::mutex> lck(m_dImgMutex);
     m_imgHeight = height;
 }
 
-void I3d::setRGBAWidth(const int& width)
+void i3d::setRGBAWidth(const int& width)
 {
     std::lock_guard<std::mutex> lck(m_dImgMutex);
     m_imgWidth = width;
 }
 
-int I3d::getRGBAWidth()
+int i3d::getRGBAWidth()
 {
     std::lock_guard<std::mutex> lck(m_dImgMutex);
     return m_imgWidth;
 }
 
-int I3d::getRGBAHeight()
+int i3d::getRGBAHeight()
 {
     std::lock_guard<std::mutex> lck(m_dImgMutex);
     return m_imgHeight;
 }
 
-void I3d::setDHeight(const int& height)
+void i3d::setDHeight(const int& height)
 {
     std::lock_guard<std::mutex> lck(m_dDepthMutex);
     m_depthHeight = height;
 }
 
-void I3d::setDWidth(const int& width)
+void i3d::setDWidth(const int& width)
 {
     std::lock_guard<std::mutex> lck(m_dDepthMutex);
     m_depthWidth = width;
 }
 
-int I3d::getDWidth()
+int i3d::getDWidth()
 {
     std::lock_guard<std::mutex> lck(m_dDepthMutex);
     return m_depthWidth;
 }
 
-int I3d::getDHeight()
+int i3d::getDHeight()
 {
     std::lock_guard<std::mutex> lck(m_dDepthMutex);
     return m_depthHeight;
 }
 
-void I3d::setPCloud2x2Bin(const std::vector<Point>& points)
+void i3d::setPCloud2x2Bin(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_pCloud2x2BinMutex);
     sptr_pCloud2x2Bin = std::make_shared<std::vector<Point>>(points);
 }
 
-std::shared_ptr<std::vector<Point>> I3d::getPCloud2x2Bin()
+std::shared_ptr<std::vector<Point>> i3d::getPCloud2x2Bin()
 {
     std::lock_guard<std::mutex> lck(m_pCloud2x2BinMutex);
     return sptr_pCloud2x2Bin;
 }
 
-void I3d::setPCloudSeg2x2Bin(const std::vector<Point>& points)
+void i3d::setPCloudSeg2x2Bin(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_pCloudSeg2x2BinMutex);
     sptr_pCloudSeg2x2Bin = std::make_shared<std::vector<Point>>(points);
 }
 
 __attribute__((unused)) std::shared_ptr<std::vector<Point>>
-I3d::getPCloudSeg2x2Bin()
+i3d::getPCloudSeg2x2Bin()
 {
     std::lock_guard<std::mutex> lck(m_pCloudSeg2x2BinMutex);
     return sptr_pCloudSeg2x2Bin;
 }
 
-void I3d::setBGRAData(uint8_t* bgra)
+void i3d::setBGRAData(uint8_t* bgra)
 {
     std::lock_guard<std::mutex> lck(m_BGRARawMutex);
     sptr_BGRARaw = std::make_shared<uint8_t*>(bgra);
 }
 
-std::shared_ptr<uint8_t*> I3d::getBGRAData()
+std::shared_ptr<uint8_t*> i3d::getBGRAData()
 {
     std::lock_guard<std::mutex> lck(m_BGRARawMutex);
     return sptr_BGRARaw;
 }
 
-void I3d::setC2DBGRAData(uint8_t* bgra)
+void i3d::setC2DBGRAData(uint8_t* bgra)
 {
     std::lock_guard<std::mutex> lck(m_BGRARawMutex);
     sptr_BGRAC2DRaw = std::make_shared<uint8_t*>(bgra);
 }
 
-std::shared_ptr<uint8_t*> I3d::getC2DBGRAData()
+std::shared_ptr<uint8_t*> i3d::getC2DBGRAData()
 {
     std::lock_guard<std::mutex> lck(m_BGRARawMutex);
     return sptr_BGRAC2DRaw;
 }
 
-void I3d::setXYZData(int16_t* xyz)
+void i3d::setXYZData(int16_t* xyz)
 {
     std::lock_guard<std::mutex> lck(m_XYZRawMutex);
     sptr_XYZRaw = std::make_shared<int16_t*>(xyz);
 }
 
-std::shared_ptr<int16_t*> I3d::getXYZData()
+std::shared_ptr<int16_t*> i3d::getXYZData()
 {
     std::lock_guard<std::mutex> lck(m_XYZRawMutex);
     return sptr_XYZRaw;
 }
 
-void I3d::setDepthData(uint16_t* xyz) // todo: cross check
+void i3d::setDepthData(uint16_t* xyz) // todo: cross check
 {
     std::lock_guard<std::mutex> lck(m_depthMutex);
     sptr_XYZDepth = std::make_shared<uint16_t*>(xyz);
 }
 
-std::shared_ptr<uint16_t*> I3d::getDepthData()
+std::shared_ptr<uint16_t*> i3d::getDepthData()
 {
     std::lock_guard<std::mutex> lck(m_depthMutex);
     return sptr_XYZDepth;
 }
 
-void I3d::setXYTableData(k4a_float2_t* ptr_table)
+void i3d::setXYTableData(k4a_float2_t* ptr_table)
 {
     std::lock_guard<std::mutex> lck(m_XYTableMutex);
     ptr_XYTableData = ptr_table;
 }
 
-k4a_float2_t* I3d::getXYTableData()
+k4a_float2_t* i3d::getXYTableData()
 {
     std::lock_guard<std::mutex> lck(m_XYTableMutex);
     return ptr_XYTableData;
 }
 
-void I3d::setPCloud(const std::vector<Point>& points)
+void i3d::setPCloud(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_pCloudMutex);
     sptr_pCloud = std::make_shared<std::vector<Point>>(points);
 }
 
-__attribute__((unused)) std::shared_ptr<std::vector<Point>> I3d::getPCloud()
+__attribute__((unused)) std::shared_ptr<std::vector<Point>> i3d::getPCloud()
 {
     std::lock_guard<std::mutex> lck(m_pCloudMutex);
     return sptr_pCloud;
 }
 
-void I3d::setPCloudSeg(const std::vector<Point>& points)
+void i3d::setPCloudSeg(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_pCloudSegMutex);
     sptr_pCloudSeg = std::make_shared<std::vector<Point>>(points);
 }
 
-std::shared_ptr<std::vector<Point>> I3d::getPCloudSeg()
+std::shared_ptr<std::vector<Point>> i3d::getPCloudSeg()
 {
     std::lock_guard<std::mutex> lck(m_pCloudSegMutex);
     return sptr_pCloudSeg;
 }
 
-void I3d::setOptimizedPCloudSeg(const std::vector<Point>& points)
+void i3d::setOptimizedPCloudSeg(const std::vector<Point>& points)
 {
     std::lock_guard<std::mutex> lck(m_optimizedPCloudSegMutex);
     sptr_optimizedPCloudSeg = std::make_shared<std::vector<Point>>(points);
 }
 
-std::shared_ptr<std::vector<Point>> I3d::getOptimizedPCloudSeg()
+std::shared_ptr<std::vector<Point>> i3d::getOptimizedPCloudSeg()
 {
     std::lock_guard<std::mutex> lck(m_optimizedPCloudSegMutex);
     return sptr_optimizedPCloudSeg;
 }
 
-void I3d::setRGBA(const std::vector<uint8_t>& rgba)
+void i3d::setRGBA(const std::vector<uint8_t>& rgba)
 {
     std::lock_guard<std::mutex> lck(m_RGBAMutex);
     sptr_RGBA = std::make_shared<std::vector<uint8_t>>(rgba);
 }
 
-std::shared_ptr<std::vector<uint8_t>> I3d::getRGBA()
+std::shared_ptr<std::vector<uint8_t>> i3d::getRGBA()
 {
     std::lock_guard<std::mutex> lck(m_RGBAMutex);
     return sptr_RGBA;
 }
 
-void I3d::setSegBoundary(std::pair<Point, Point>& boundary)
+void i3d::setSegBoundary(std::pair<Point, Point>& boundary)
 {
     std::lock_guard<std::mutex> lck(m_boundaryMutex);
     m_segBoundary = boundary;
 }
 
-std::pair<Point, Point> I3d::getSegBoundary()
+std::pair<Point, Point> i3d::getSegBoundary()
 {
     std::lock_guard<std::mutex> lck(m_boundaryMutex);
     return m_segBoundary;
 }
 
-void I3d::setXYZ(const std::vector<int16_t>& xyz)
+void i3d::setXYZ(const std::vector<int16_t>& xyz)
 {
     std::lock_guard<std::mutex> lck(m_XYZMutex);
     sptr_XYZ = std::make_shared<std::vector<int16_t>>(xyz);
 }
 
-std::shared_ptr<std::vector<int16_t>> I3d::getXYZ()
+std::shared_ptr<std::vector<int16_t>> i3d::getXYZ()
 {
     std::lock_guard<std::mutex> lck(m_XYZMutex);
     return sptr_XYZ;
 }
 
-void I3d::setXYZSeg(const std::vector<int16_t>& xyz)
+void i3d::setXYZSeg(const std::vector<int16_t>& xyz)
 {
     std::lock_guard<std::mutex> lck(m_XYZSegMutex);
     sptr_XYZSeg = std::make_shared<std::vector<int16_t>>(xyz);
 }
 
-std::shared_ptr<std::vector<int16_t>> I3d::getPCloudSegFrame()
+std::shared_ptr<std::vector<int16_t>> i3d::getPCloudSegFrame()
 {
     std::lock_guard<std::mutex> lck(m_XYZSegMutex);
     return sptr_XYZSeg;
 }
 
-void I3d::setRGBASeg(const std::vector<uint8_t>& rgba)
+void i3d::setRGBASeg(const std::vector<uint8_t>& rgba)
 {
     std::lock_guard<std::mutex> lck(m_RGBASegMutex);
     sptr_RGBASeg = std::make_shared<std::vector<uint8_t>>(rgba);
 }
 
-std::shared_ptr<std::vector<uint8_t>> I3d::getRGBASeg()
+std::shared_ptr<std::vector<uint8_t>> i3d::getRGBASeg()
 {
     std::lock_guard<std::mutex> lck(m_RGBASegMutex);
     return sptr_RGBASeg;
 }
 
-void I3d::setBGRA(const std::vector<uint8_t>& bgra)
+void i3d::setBGRA(const std::vector<uint8_t>& bgra)
 {
     std::lock_guard<std::mutex> lck(m_BGRAMutex);
     sptr_BGRA = std::make_shared<std::vector<uint8_t>>(bgra);
 }
 
-std::shared_ptr<std::vector<uint8_t>> I3d::getBGRA()
+std::shared_ptr<std::vector<uint8_t>> i3d::getBGRA()
 {
     std::lock_guard<std::mutex> lck(m_BGRAMutex);
     return sptr_BGRA;
 }
 
-void I3d::setPCloudClusters(const t_clusters& clusters)
+void i3d::setPCloudClusters(const t_clusters& clusters)
 {
     std::lock_guard<std::mutex> lck(m_pCloudClusterMutex);
     sptr_pCloudClusters = std::make_shared<t_clusters>(clusters);
 }
 
-std::shared_ptr<I3d::t_clusters> I3d::getPCloudClusters()
+std::shared_ptr<i3d::t_clusters> i3d::getPCloudClusters()
 {
     std::lock_guard<std::mutex> lck(m_pCloudClusterMutex);
     return sptr_pCloudClusters;
 }
 
-void I3d::setColorizedClusters(
+void i3d::setColorizedClusters(
     const std::pair<int16_t*, uint8_t*>& colorizedClusters)
 {
     std::lock_guard<std::mutex> lck(m_colorizedClustersMutex);
@@ -376,13 +376,13 @@ void I3d::setColorizedClusters(
         = std::make_shared<std::pair<int16_t*, uint8_t*>>(colorizedClusters);
 }
 
-std::shared_ptr<std::pair<int16_t*, uint8_t*>> I3d::getColorizedClusters()
+std::shared_ptr<std::pair<int16_t*, uint8_t*>> i3d::getColorizedClusters()
 {
     std::lock_guard<std::mutex> lck(m_colorizedClustersMutex);
     return sptr_colorizedClusters;
 }
 
-void I3d::buildPCloud(std::shared_ptr<I3d>& sptr_i3d)
+void i3d::buildPCloud(std::shared_ptr<i3d>& sptr_i3d)
 {
 #if BUILD_POINTCLOUD == 1
     SLEEP_UNTIL_SENSOR_DATA_READY
@@ -421,7 +421,7 @@ void I3d::buildPCloud(std::shared_ptr<I3d>& sptr_i3d)
 #endif
 }
 
-void I3d::proposeRegion(std::shared_ptr<I3d>& sptr_i3d)
+void i3d::proposeRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
 #if PROPOSE_REGION == 1
     WAIT_FOR_FAST_POINTCLOUD
@@ -439,7 +439,7 @@ void I3d::proposeRegion(std::shared_ptr<I3d>& sptr_i3d)
 #endif
 }
 
-void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
+void i3d::segmentRegion(std::shared_ptr<i3d>& sptr_i3d)
 {
 #if SEGMENT_REGION == 1
     WAIT_FOR_PROPOSAL
@@ -516,8 +516,8 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
 #endif
 }
 
-void I3d::clusterRegion(
-    const float& epsilon, const int& minPoints, std::shared_ptr<I3d>& sptr_i3d)
+void i3d::clusterRegion(
+    const float& epsilon, const int& minPoints, std::shared_ptr<i3d>& sptr_i3d)
 {
 #if CLUSTER_REGION == 1
     WAIT_FOR_SEGMENT
