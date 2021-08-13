@@ -9,7 +9,7 @@
 #include "kinect.h"
 #include "point.h"
 
-class I3d {
+class i3d {
 
 public:
     int m_imgWidth {};
@@ -86,7 +86,7 @@ public:
     /** i3d
      *   Constructs instance of 3dintact
      */
-    I3d();
+    i3d();
 
     /** proposeRegion
      *   Proposes a region/segment of an orthogonal
@@ -95,7 +95,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void proposeRegion(std::shared_ptr<I3d>& sptr_i3d);
+    static void proposeRegion(std::shared_ptr<i3d>& sptr_i3d);
 
     /** buildPCloud
      *   Builds a point cloud suited to i3d computations
@@ -103,7 +103,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void buildPCloud(std::shared_ptr<I3d>& sptr_i3d);
+    static void buildPCloud(std::shared_ptr<i3d>& sptr_i3d);
 
     /** clusterRegion
      *   Does spatial clustering of the extracted
@@ -117,7 +117,7 @@ public:
      *   Instance of API call.
      */
     static void clusterRegion(const float& epsilon, const int& minPoints,
-        std::shared_ptr<I3d>& sptr_i3d);
+        std::shared_ptr<i3d>& sptr_i3d);
 
     /** segmentRegion
      *   Creates point cloud and image data frames
@@ -126,7 +126,7 @@ public:
      * @param sptr_i3d
      *   Instance of API call.
      */
-    static void segmentRegion(std::shared_ptr<I3d>& sptr_i3d);
+    static void segmentRegion(std::shared_ptr<i3d>& sptr_i3d);
 
     void stop();
     bool isRun();
