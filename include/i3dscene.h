@@ -10,7 +10,7 @@
 #include "io.h"
 #include "kinect.h"
 
-namespace scene {
+namespace i3dscene {
 
 static std::thread k4aCaptureWorker;    // camera capture thread
 static std::thread buildPCloudWorker;   // point-cloud builder thread
