@@ -66,12 +66,12 @@ void io::write(std::vector<float>& value)
     filestream.close();
 }
 
-void io::write(const uint8_t* imgData, const int& w, const int& h)
+void io::write(
+    const int& w, const int& h, const uint8_t* bgra, const std::string& path)
 {
-    const std::string IMAGE_FILE = "./output/scene.png";
-    cv::Mat img
-        = cv::Mat(h, w, CV_8UC4, (void*)imgData, cv::Mat::AUTO_STEP).clone();
-    cv::imwrite(IMAGE_FILE, img);
+    cv::Mat image
+        = cv::Mat(h, w, CV_8UC4, (void*)bgra, cv::Mat::AUTO_STEP).clone();
+    cv::imwrite(path, image);
 }
 
 void io::performance(const float& rawData, const float& filteredData,
