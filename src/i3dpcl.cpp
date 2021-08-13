@@ -247,7 +247,7 @@ std::vector<Point> i3dpcl::build(
         uint8_t b = bgra[4 * i + 0];
         uint8_t a = bgra[4 * i + 3];
         uint8_t rgba[4] = { r, g, b, a };
-        point.setPixel_RGBA(rgba);
+        point.setRGBA(rgba);
 
         if (point.m_rgba[0] == 0 && point.m_rgba[1] == 0 && point.m_rgba[2] == 0
             && point.m_rgba[3] == 0) {
