@@ -1,9 +1,9 @@
 #ifndef INTACT_MACROS_HPP
 #define INTACT_MACROS_HPP
 
+#include "i3dpcl.h"
+#include "i3dtimer.h"
 #include "logger.h"
-#include "pcl.h"
-#include "timer.h"
 
 #define SLEEP_UNTIL_SENSOR_DATA_READY                                          \
     while (!sptr_i3d->isSensorReady()) {                                       \
