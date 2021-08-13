@@ -31,7 +31,8 @@ public:
      * @param k4a_image_t
      *   RGB image from kinect.
      */
-    static void write(const uint8_t* imgData, const int& w, const int& h);
+    static void write(const int& w, const int& h, const uint8_t* bgra,
+        const std::string& path);
 
     /**
      * io::write
