@@ -183,7 +183,7 @@ public:
     std::shared_ptr<std::vector<uint8_t>> getRGBA();
 
     void setXYZSeg(const std::vector<int16_t>& xyz);
-    std::shared_ptr<std::vector<int16_t>> getPCloudSegFrame();
+    std::shared_ptr<std::vector<int16_t>> getXYZSeg();
 
     void setRGBASeg(const std::vector<uint8_t>& rgba);
     std::shared_ptr<std::vector<uint8_t>> getRGBASeg();
