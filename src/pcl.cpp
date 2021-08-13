@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "io.h"
-#include "ply.h"
+#include "pcl.h"
 #include "point.h"
 #include "searcher.h"
 
@@ -30,7 +30,7 @@ struct t_rgbPoint {
     uint8_t rgb[3];
 };
 
-void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
+void pcl::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
     const std::string& FILE)
 {
     std::vector<t_rgbPoint> points;
@@ -171,10 +171,10 @@ std::vector<Point> colourPCloudSeg(
 //                   colorize segment
 /////////////////////////////////////////////////////////////
 
-void ply::write(std::vector<Point>& pCloud, std::vector<Point>& pCloudSeg)
+void pcl::write(std::vector<Point>& pCloud, std::vector<Point>& pCloudSeg)
 {
     std::vector<Point> points = colourPCloudSeg(pCloud, pCloudSeg);
-    const std::string FILE = io::pwd() + "/output/context.ply";
+    const std::string FILE = io::pwd() + "/output/context.pcl";
 
     /** write to file */
     PLY_HEADER;
@@ -189,7 +189,7 @@ void ply::write(std::vector<Point>& pCloud, std::vector<Point>& pCloudSeg)
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
-void ply::write(std::vector<Point>& points, const std::string& FILE)
+void pcl::write(std::vector<Point>& points, const std::string& FILE)
 {
     PLY_HEADER;
     std::stringstream ss;
@@ -208,9 +208,9 @@ void ply::write(std::vector<Point>& points, const std::string& FILE)
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
-void ply::write1(std::vector<Point>& points)
+void pcl::write1(std::vector<Point>& points)
 {
-    const std::string FILE = io::pwd() + "/output/context1.ply";
+    const std::string FILE = io::pwd() + "/output/context1.pcl";
 
     /** write to file */
     PLY_HEADER;
@@ -230,7 +230,7 @@ void ply::write1(std::vector<Point>& points)
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
-std::vector<Point> ply::build(
+std::vector<Point> pcl::build(
     const int& w, const int& h, const int16_t* pCloudData, const uint8_t* bgra)
 {
     std::vector<Point> pCloud;
@@ -258,7 +258,7 @@ std::vector<Point> ply::build(
     return pCloud;
 }
 
-void ply::write(const int& w, const int& h, const int16_t* pCloudData,
+void pcl::write(const int& w, const int& h, const int16_t* pCloudData,
     const uint8_t* rgbData, const std::string& FILE)
 {
     std::vector<Point> points = build(w, h, pCloudData, rgbData);
