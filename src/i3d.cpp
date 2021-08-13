@@ -7,12 +7,12 @@
 
 #include "dbscan.h"
 #include "i3d.h"
+#include "i3dmacros.hpp"
+#include "i3dutils.h"
 #include "kinect.h"
-#include "macros.hpp"
 #include "outliers.h"
 #include "region.h"
 #include "svd.h"
-#include "utilities.h"
 
 I3d::I3d()
 {
@@ -394,14 +394,14 @@ void I3d::buildPCloud(std::shared_ptr<I3d>& sptr_i3d)
     k4a_float2_t* ptr_tableData;
 
     std::vector<Point> pCloud(w * h);
-    while (sptr_i3d->isRun()) {
+    while (RUN) {
         START_TIMER
         ptr_depthData = *sptr_i3d->getDepthData();
         ptr_tableData = sptr_i3d->getXYTableData();
 
         int index = 0;
         for (int i = 0; i < w * h; i++) {
-            if (utils::invalid(i, ptr_tableData, ptr_depthData)) {
+            if (i3dutils::invalid(i, ptr_tableData, ptr_depthData)) {
                 continue;
             }
             int16_t x = ptr_tableData[i].xy.x * (float)ptr_depthData[i];
@@ -426,11 +426,11 @@ void I3d::proposeRegion(std::shared_ptr<I3d>& sptr_i3d)
 #if PROPOSE_REGION == 1
     WAIT_FOR_FAST_POINTCLOUD
     START
-    while (sptr_i3d->isRun()) {
+    while (RUN) {
         START_TIMER
         std::vector<Point> pCloud = *sptr_i3d->getPCloud2x2Bin();
         std::vector<Point> pCloudSeg = region::segment(pCloud);
-        std::pair<Point, Point> boundary = utils::queryBoundary(pCloudSeg);
+        std::pair<Point, Point> boundary = i3dutils::queryBoundary(pCloudSeg);
         sptr_i3d->setPCloudSeg2x2Bin(pCloudSeg);
         sptr_i3d->setSegBoundary(boundary);
         POINTCLOUD_READY
@@ -461,7 +461,7 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
     uint8_t* ptr_sensorC2DData;
     int16_t* ptr_sensorPCloudData;
 
-    while (sptr_i3d->isRun()) {
+    while (RUN) {
         START_TIMER
         ptr_sensorPCloudData = *sptr_i3d->getXYZData();
         ptr_sensorC2DData = *sptr_i3d->getC2DBGRAData();
@@ -471,32 +471,32 @@ void I3d::segmentRegion(std::shared_ptr<I3d>& sptr_i3d)
             Point point;
 
             // create unsegmented assets
-            if (utils::invalid(i, ptr_sensorPCloudData, ptr_sensorC2DData)) {
-                utils::addXYZ(i, pCloudFrame);
-                utils::addPixel_RGBA(i, imgFrame_RGBA);
-                utils::addPixel_BGRA(i, imgFrame_BGRA);
+            if (i3dutils::invalid(i, ptr_sensorPCloudData, ptr_sensorC2DData)) {
+                i3dutils::addXYZ(i, pCloudFrame);
+                i3dutils::addPixel_RGBA(i, imgFrame_RGBA);
+                i3dutils::addPixel_BGRA(i, imgFrame_BGRA);
             } else {
-                utils::addXYZ(i, pCloudFrame, ptr_sensorPCloudData);
-                utils::addPixel_RGBA(i, imgFrame_RGBA, ptr_sensorC2DData);
-                utils::addPixel_BGRA(i, imgFrame_BGRA, ptr_sensorC2DData);
+                i3dutils::addXYZ(i, pCloudFrame, ptr_sensorPCloudData);
+                i3dutils::addPixel_RGBA(i, imgFrame_RGBA, ptr_sensorC2DData);
+                i3dutils::addPixel_BGRA(i, imgFrame_BGRA, ptr_sensorC2DData);
             }
-            utils::adapt(i, point, pCloudFrame, imgFrame_BGRA);
+            i3dutils::adapt(i, point, pCloudFrame, imgFrame_BGRA);
             pCloud[i] = point;
 
             // create segmented assets
-            if (utils::inSegment(i, pCloudFrame,
+            if (i3dutils::inSegment(i, pCloudFrame,
                     sptr_i3d->getSegBoundary().first,
                     sptr_i3d->getSegBoundary().second)) {
-                utils::addXYZ(i, pCloudSegFrame, ptr_sensorPCloudData);
-                utils::addPixel_RGBA(i, imgSegFrame_RGBA, ptr_sensorC2DData);
-                utils::addPixel_BGRA(i, imgSegFrame_BGRA, ptr_sensorC2DData);
+                i3dutils::addXYZ(i, pCloudSegFrame, ptr_sensorPCloudData);
+                i3dutils::addPixel_RGBA(i, imgSegFrame_RGBA, ptr_sensorC2DData);
+                i3dutils::addPixel_BGRA(i, imgSegFrame_BGRA, ptr_sensorC2DData);
                 // point.m_id = index; // test
                 pCloudSeg[index] = point;
                 index++;
             } else {
-                utils::addXYZ(i, pCloudSegFrame);
-                utils::addPixel_RGBA(i, imgSegFrame_RGBA);
-                utils::addPixel_BGRA(i, imgSegFrame_BGRA);
+                i3dutils::addXYZ(i, pCloudSegFrame);
+                i3dutils::addPixel_RGBA(i, imgSegFrame_RGBA);
+                i3dutils::addPixel_BGRA(i, imgSegFrame_BGRA);
             }
         }
         std::vector<Point> optimizedPCloudSeg(
@@ -522,7 +522,7 @@ void I3d::clusterRegion(
 #if CLUSTER_REGION == 1
     WAIT_FOR_SEGMENT
     START
-    while (sptr_i3d->isRun()) {
+    while (RUN) {
         START_TIMER
         std::vector<Point> points = *sptr_i3d->getOptimizedPCloudSeg();
 
