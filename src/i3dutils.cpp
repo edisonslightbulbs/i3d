@@ -90,9 +90,9 @@ bool i3dutils::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
         return true;
     }
 
-    int16_t x = ptr_xyTable[index].xy.x * (float)depthData[index];
-    int16_t y = ptr_xyTable[index].xy.y * (float)depthData[index];
-    int16_t z = (float)depthData[index];
+    auto x = (int16_t)(ptr_xyTable[index].xy.x * (float)depthData[index]);
+    auto y = (int16_t)(ptr_xyTable[index].xy.y * (float)depthData[index]);
+    auto z = (int16_t)depthData[index];
     if (x == 0 && y == 0 && z == 0) {
         return true;
     }
@@ -324,6 +324,12 @@ void i3dutils::findObjects(const int& h, const int& w, uint8_t* bgraData,
             cv::rectangle(frame,
                 cv::Rect(left, top, (right - left), (bottom - top)),
                 cv::Scalar(0, 255, 0), 1);
+            // todo:: we can introduce a mapping function here that
+            //   evaluates classnames
+            //  1. find closest free space in vacant surface
+            //  2. allocate coordinates for the projection
+            //  3. project .... cause bob is your uncle
+            //
             cv::putText(frame,
                 classnames[classID] + ": " + cv::format("%.2f", score),
                 cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX,
