@@ -3,7 +3,6 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <set>
-#include <sstream>
 #include <string>
 #include <unistd.h>
 
@@ -52,14 +51,13 @@ std::vector<Point> io::read(std::vector<Point> points, const char* file)
     return points;
 }
 
-void io::write(std::vector<float>& value)
+void io::write(std::vector<float>& values, const std::string& file)
 {
-    const std::string fileName = "./output/knn.csv";
     std::ofstream filestream;
-    filestream.open(fileName);
+    filestream.open(file);
     filestream << "index,value" << std::endl;
     int index = 1;
-    for (const auto& v : value) {
+    for (const auto& v : values) {
         filestream << index << ", " << v << std::endl;
         index++;
     }
