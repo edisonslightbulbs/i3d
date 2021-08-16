@@ -1,12 +1,14 @@
 #include <cmath>
 #include <k4a/k4a.hpp>
-// #include <opencv2/core.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/opencv.hpp>
 #include <random>
 #include <torch/script.h>
 
-#include "i3dmacros.hpp"
 #include "i3dutils.h"
 #include "point.h"
+#include "yolov5.h"
 
 // colors handy for coloring clusters:
 // see@ https://colorbrewer2.org/#type=diverging&scheme=RdYlBu&n=9
@@ -50,17 +52,16 @@ void i3dutils::configTorch(
 }
 
 void i3dutils::adapt(const int& index, Point& point,
-    const std::vector<int16_t>& pCloudFrame,
-    const std::vector<uint8_t>& imgFrame)
+    const std::vector<int16_t>& pCloud, const std::vector<uint8_t>& image)
 {
-    int16_t x = pCloudFrame[3 * index + 0];
-    int16_t y = pCloudFrame[3 * index + 1];
-    int16_t z = pCloudFrame[3 * index + 2];
+    int16_t x = pCloud[3 * index + 0];
+    int16_t y = pCloud[3 * index + 1];
+    int16_t z = pCloud[3 * index + 2];
 
-    uint8_t b = imgFrame[4 * index + 0];
-    uint8_t g = imgFrame[4 * index + 1];
-    uint8_t r = imgFrame[4 * index + 2];
-    uint8_t a = imgFrame[4 * index + 3];
+    uint8_t b = image[4 * index + 0];
+    uint8_t g = image[4 * index + 1];
+    uint8_t r = image[4 * index + 2];
+    uint8_t a = image[4 * index + 3];
 
     int16_t xyz[3] = { x, y, z };
     uint8_t rgba[4] = { r, g, b, a };
@@ -72,26 +73,26 @@ void i3dutils::adapt(const int& index, Point& point,
     point.setBGRA(bgra);
 }
 
-bool i3dutils::null(const int& index, std::vector<int16_t>& pCloudFrame,
-    std::vector<uint8_t>& imgFrame)
+bool i3dutils::null(
+    const int& index, std::vector<int16_t>& pCloud, std::vector<uint8_t>& image)
 {
-    if (pCloudFrame[3 * index + 2] == 0 && imgFrame[4 * index + 3] == 0) {
+    if (pCloud[3 * index + 2] == 0 && image[4 * index + 3] == 0) {
         return true;
     }
     return false;
 }
 
 bool i3dutils::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
-    const uint16_t* ptr_depth)
+    const uint16_t* depthData)
 {
-    if (ptr_depth[index] == 0 && std::isnan(ptr_xyTable[index].xy.x)
+    if (depthData[index] == 0 && std::isnan(ptr_xyTable[index].xy.x)
         && std::isnan(ptr_xyTable[index].xy.y)) {
         return true;
     }
 
-    int16_t x = ptr_xyTable[index].xy.x * (float)ptr_depth[index];
-    int16_t y = ptr_xyTable[index].xy.y * (float)ptr_depth[index];
-    int16_t z = (float)ptr_depth[index];
+    int16_t x = ptr_xyTable[index].xy.x * (float)depthData[index];
+    int16_t y = ptr_xyTable[index].xy.y * (float)depthData[index];
+    int16_t z = (float)depthData[index];
     if (x == 0 && y == 0 && z == 0) {
         return true;
     }
@@ -100,123 +101,121 @@ bool i3dutils::invalid(const int& index, const k4a_float2_t* ptr_xyTable,
 }
 
 bool i3dutils::invalid(
-    const int& index, const int16_t* ptr_pCloudData, const uint8_t* ptr_imgData)
+    const int& index, const int16_t* xyzData, const uint8_t* rgbaData)
 {
-    if (ptr_pCloudData[3 * index + 2] == 0
-        || std::isnan(ptr_pCloudData[3 * index + 2])) {
+    if (xyzData[3 * index + 2] == 0 || std::isnan(xyzData[3 * index + 2])) {
         return true;
     }
-    if (std::isnan(ptr_imgData[index])) {
+    if (std::isnan(rgbaData[index])) {
         return true;
     }
     return false;
 }
 
-void i3dutils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame,
-    const int16_t* ptr_pCloudData)
+void i3dutils::addXYZ(
+    const int& index, std::vector<int16_t>& pCloud, const int16_t* xyzData)
 {
-    pCloudFrame[3 * index + 0] = ptr_pCloudData[3 * index + 0];
-    pCloudFrame[3 * index + 1] = ptr_pCloudData[3 * index + 1];
-    pCloudFrame[3 * index + 2] = ptr_pCloudData[3 * index + 2];
+    pCloud[3 * index + 0] = xyzData[3 * index + 0];
+    pCloud[3 * index + 1] = xyzData[3 * index + 1];
+    pCloud[3 * index + 2] = xyzData[3 * index + 2];
 }
 
-void i3dutils::addXYZ(const int& index, std::vector<int16_t>& pCloudFrame)
+void i3dutils::addXYZ(const int& index, std::vector<int16_t>& pCloud)
 {
-    pCloudFrame[3 * index + 0] = 0;
-    pCloudFrame[3 * index + 1] = 0;
-    pCloudFrame[3 * index + 2] = 0;
+    pCloud[3 * index + 0] = 0;
+    pCloud[3 * index + 1] = 0;
+    pCloud[3 * index + 2] = 0;
 }
 
-void i3dutils::addBGRA(const int& index, std::vector<uint8_t>& imgFrame_CV,
+void i3dutils::addBGRA(const int& index, std::vector<uint8_t>& bgraImage,
     const uint8_t* ptr_imgData)
 {
-    imgFrame_CV[4 * index + 0] = ptr_imgData[4 * index + 0]; // blue
-    imgFrame_CV[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
-    imgFrame_CV[4 * index + 2] = ptr_imgData[4 * index + 2]; // red
-    imgFrame_CV[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
+    bgraImage[4 * index + 0] = ptr_imgData[4 * index + 0]; // blue
+    bgraImage[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
+    bgraImage[4 * index + 2] = ptr_imgData[4 * index + 2]; // red
+    bgraImage[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void i3dutils::addRGBA(const int& index, std::vector<uint8_t>& imgFrame_GL,
+void i3dutils::addRGBA(const int& index, std::vector<uint8_t>& rgbaImage,
     const uint8_t* ptr_imgData)
 {
-    imgFrame_GL[4 * index + 2] = ptr_imgData[4 * index + 0]; // blue
-    imgFrame_GL[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
-    imgFrame_GL[4 * index + 0] = ptr_imgData[4 * index + 2]; // red
-    imgFrame_GL[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
+    rgbaImage[4 * index + 2] = ptr_imgData[4 * index + 0]; // blue
+    rgbaImage[4 * index + 1] = ptr_imgData[4 * index + 1]; // green
+    rgbaImage[4 * index + 0] = ptr_imgData[4 * index + 2]; // red
+    rgbaImage[4 * index + 3] = ptr_imgData[4 * index + 3]; // alpha
 }
 
-void i3dutils::addRGBA(const int& index, std::vector<uint8_t>& imgFrame_GL)
+void i3dutils::addRGBA(const int& index, std::vector<uint8_t>& rgbaImage)
 {
-    imgFrame_GL[4 * index + 0] = 0; // red
-    imgFrame_GL[4 * index + 1] = 0; // green
-    imgFrame_GL[4 * index + 2] = 0; // blue
-    imgFrame_GL[4 * index + 3] = 0; // alpha
+    rgbaImage[4 * index + 0] = 0; // red
+    rgbaImage[4 * index + 1] = 0; // green
+    rgbaImage[4 * index + 2] = 0; // blue
+    rgbaImage[4 * index + 3] = 0; // alpha
 }
 
-void i3dutils::addBGRA(const int& index, std::vector<uint8_t>& imgFrame_CV)
+void i3dutils::addBGRA(const int& index, std::vector<uint8_t>& bgraImage)
 {
-    imgFrame_CV[4 * index + 0] = 0; // red
-    imgFrame_CV[4 * index + 1] = 0; // green
-    imgFrame_CV[4 * index + 2] = 0; // blue
-    imgFrame_CV[4 * index + 3] = 0; // alpha
+    bgraImage[4 * index + 0] = 0; // red
+    bgraImage[4 * index + 1] = 0; // green
+    bgraImage[4 * index + 2] = 0; // blue
+    bgraImage[4 * index + 3] = 0; // alpha
 }
 
-bool i3dutils::inSegment(const int& index,
-    const std::vector<int16_t>& pCloudFrame, const Point& minPoint,
-    const Point& maxPoint)
+bool i3dutils::inSegment(const int& index, const std::vector<int16_t>& pCloud,
+    const Point& minPoint, const Point& maxPoint)
 {
-    if (pCloudFrame[3 * index + 2] == 0) {
+    if (pCloud[3 * index + 2] == 0) {
         return false;
     }
 
-    if ((int16_t)pCloudFrame[3 * index + 0] > maxPoint.m_xyz[0]
-        || (int16_t)pCloudFrame[3 * index + 0] < minPoint.m_xyz[0]
-        || (int16_t)pCloudFrame[3 * index + 1] > maxPoint.m_xyz[1]
-        || (int16_t)pCloudFrame[3 * index + 1] < minPoint.m_xyz[1]
-        || (int16_t)pCloudFrame[3 * index + 2] > maxPoint.m_xyz[2]
-        || (int16_t)pCloudFrame[3 * index + 2] < minPoint.m_xyz[2]) {
+    if ((int16_t)pCloud[3 * index + 0] > maxPoint.m_xyz[0]
+        || (int16_t)pCloud[3 * index + 0] < minPoint.m_xyz[0]
+        || (int16_t)pCloud[3 * index + 1] > maxPoint.m_xyz[1]
+        || (int16_t)pCloud[3 * index + 1] < minPoint.m_xyz[1]
+        || (int16_t)pCloud[3 * index + 2] > maxPoint.m_xyz[2]
+        || (int16_t)pCloud[3 * index + 2] < minPoint.m_xyz[2]) {
         return false;
     }
     return true;
 }
 
-void i3dutils::stitch(const int& index, Point& point, int16_t* ptr_pCloud,
-    uint8_t* ptr_img_GL, uint8_t* ptr_img_CV)
+void i3dutils::stitch(const int& index, Point& point, int16_t* xyzData,
+    uint8_t* rgbaData, uint8_t* bgraData)
 {
-    ptr_pCloud[3 * index + 0] = point.m_xyz[0]; // x
-    ptr_pCloud[3 * index + 1] = point.m_xyz[1]; // y
-    ptr_pCloud[3 * index + 2] = point.m_xyz[2]; // z
+    xyzData[3 * index + 0] = point.m_xyz[0]; // x
+    xyzData[3 * index + 1] = point.m_xyz[1]; // y
+    xyzData[3 * index + 2] = point.m_xyz[2]; // z
 
-    ptr_img_CV[4 * index + 0] = point.m_bgra[0]; // blue
-    ptr_img_CV[4 * index + 1] = point.m_bgra[1]; // green
-    ptr_img_CV[4 * index + 2] = point.m_bgra[2]; // red
-    ptr_img_CV[4 * index + 3] = point.m_bgra[3]; // alpha
+    bgraData[4 * index + 0] = point.m_bgra[0]; // blue
+    bgraData[4 * index + 1] = point.m_bgra[1]; // green
+    bgraData[4 * index + 2] = point.m_bgra[2]; // red
+    bgraData[4 * index + 3] = point.m_bgra[3]; // alpha
 
-    ptr_img_GL[4 * index + 0] = point.m_rgba[0]; // red
-    ptr_img_GL[4 * index + 1] = point.m_rgba[1]; // green
-    ptr_img_GL[4 * index + 2] = point.m_rgba[2]; // blue
-    ptr_img_GL[4 * index + 3] = point.m_rgba[3]; // alpha
+    rgbaData[4 * index + 0] = point.m_rgba[0]; // red
+    rgbaData[4 * index + 1] = point.m_rgba[1]; // green
+    rgbaData[4 * index + 2] = point.m_rgba[2]; // blue
+    rgbaData[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
 void i3dutils::stitch(const int& index, Point& point,
-    std::vector<int16_t>& pCloud, std::vector<uint8_t> image_GL)
+    std::vector<int16_t>& pCloud, std::vector<uint8_t> rgba)
 {
     pCloud[3 * index + 0] = point.m_xyz[0]; // x
     pCloud[3 * index + 1] = point.m_xyz[1]; // y
     pCloud[3 * index + 2] = point.m_xyz[2]; // z
 
-    image_GL[4 * index + 0] = point.m_rgba[0]; // red
-    image_GL[4 * index + 1] = point.m_rgba[1]; // green
-    image_GL[4 * index + 2] = point.m_rgba[2]; // blue
-    image_GL[4 * index + 3] = point.m_rgba[3]; // alpha
+    rgba[4 * index + 0] = point.m_rgba[0]; // red
+    rgba[4 * index + 1] = point.m_rgba[1]; // green
+    rgba[4 * index + 2] = point.m_rgba[2]; // blue
+    rgba[4 * index + 3] = point.m_rgba[3]; // alpha
 }
 
-void i3dutils::stitch(const int& index, Point& point, uint8_t* ptr_img_CV)
+void i3dutils::stitch(const int& index, Point& point, uint8_t* bgra)
 {
-    ptr_img_CV[4 * index + 0] = point.m_bgra[0]; // blue
-    ptr_img_CV[4 * index + 1] = point.m_bgra[1]; // green
-    ptr_img_CV[4 * index + 2] = point.m_bgra[2]; // red
-    ptr_img_CV[4 * index + 3] = point.m_bgra[3]; // alpha
+    bgra[4 * index + 0] = point.m_bgra[0]; // blue
+    bgra[4 * index + 1] = point.m_bgra[1]; // green
+    bgra[4 * index + 2] = point.m_bgra[2]; // red
+    bgra[4 * index + 3] = point.m_bgra[3]; // alpha
 }
 
 std::pair<Point, Point> i3dutils::queryBoundary(std::vector<Point>& points)
@@ -241,21 +240,6 @@ std::pair<Point, Point> i3dutils::queryBoundary(std::vector<Point>& points)
     Point max(xMax, yMax, zMax);
     return { min, max };
 }
-
-// // todo: move to viewer
-// void utils::cvDisplay(
-//     cv::Mat img, std::shared_ptr<I3d>& sptr_i3d, clock_t start)
-// {
-//     cv::putText(img,
-//         "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
-//         cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255,
-//         0), 2);
-//
-//     cv::imshow("", img);
-//     if (cv::waitKey(1) == 27) {
-//         sptr_i3d->raiseStopFlag();
-//     }
-// }
 
 void i3dutils::add(std::vector<uint8_t*>& colors)
 {
@@ -286,4 +270,74 @@ int i3dutils::randNum(const int& max)
     std::mt19937 mt(rd());
     std::uniform_real_distribution<double> dist(0, max);
     return (int)dist(mt);
+}
+
+void i3dutils::show(const int& h, const int& w, uint8_t* bgraData,
+    std::shared_ptr<i3d>& sptr_i3d)
+{
+    cv::Mat img
+        = cv::Mat(h, w, CV_8UC4, (void*)bgraData, cv::Mat::AUTO_STEP).clone();
+    cv::imshow("i3d", img);
+    if (cv::waitKey(1) == 27) {
+        sptr_i3d->stop();
+    }
+}
+
+void i3dutils::findObjects(const int& h, const int& w, uint8_t* bgraData,
+    std::vector<std::string>& classnames, torch::jit::script::Module& module,
+    std::shared_ptr<i3d>& sptr_i3d)
+{
+    clock_t start = clock();
+
+    cv::Mat frame, frameResized;
+    frame = cv::Mat(h, w, CV_8UC4, (void*)bgraData, cv::Mat::AUTO_STEP).clone();
+
+    // format frame for tensor input
+    cv::resize(frame, frameResized, cv::Size(640, 384));
+    cv::cvtColor(frameResized, frameResized, cv::COLOR_BGR2RGB);
+    torch::Tensor imgTensor = torch::from_blob(frameResized.data,
+        { frameResized.rows, frameResized.cols, 3 }, torch::kByte);
+    imgTensor = imgTensor.permute({ 2, 0, 1 });
+    imgTensor = imgTensor.toType(torch::kFloat);
+    imgTensor = imgTensor.div(255);
+    imgTensor = imgTensor.unsqueeze(0);
+
+    torch::Tensor preds // preds: [?, 15120, 9]
+        = module.forward({ imgTensor }).toTuple()->elements()[0].toTensor();
+    std::vector<torch::Tensor> dets
+        = yolo::non_max_suppression(preds, 0.4, 0.5);
+
+    // show objects
+    if (!dets.empty()) {
+        for (int64_t i = 0; i < dets[0].sizes()[0]; ++i) {
+            auto left = (int)(dets[0][i][0].item().toFloat() * (float)frame.cols
+                / 640);
+            auto top = (int)(dets[0][i][1].item().toFloat() * (float)frame.rows
+                / 384);
+            auto right = (int)(dets[0][i][2].item().toFloat()
+                * (float)frame.cols / 640);
+            auto bottom = (int)(dets[0][i][3].item().toFloat()
+                * (float)frame.rows / 384);
+            float score = dets[0][i][4].item().toFloat();
+            int classID = dets[0][i][5].item().toInt();
+
+            cv::rectangle(frame,
+                cv::Rect(left, top, (right - left), (bottom - top)),
+                cv::Scalar(0, 255, 0), 1);
+            cv::putText(frame,
+                classnames[classID] + ": " + cv::format("%.2f", score),
+                cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX,
+                (double)(right - left) / 200, cv::Scalar(0, 255, 0), 1);
+        }
+    }
+
+    cv::putText(frame,
+        "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
+        cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0),
+        2);
+
+    cv::imshow("i3d", frame);
+    if (cv::waitKey(1) == 27) {
+        sptr_i3d->stop();
+    }
 }
