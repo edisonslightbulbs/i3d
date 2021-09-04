@@ -38,19 +38,6 @@ __attribute__((unused)) uint8_t deepgreen[3] = { 53, 151, 143 };
 __attribute__((unused)) uint8_t othergreen[3] = { 1, 102, 94 };
 __attribute__((unused)) uint8_t black[3] = { 0, 0, 0 };
 
-void i3dutils::configTorch(
-    std::vector<std::string>& classNames, torch::jit::script::Module& module)
-{
-    const std::string scriptName = io::pwd() + "/resources/torchscript.pt";
-    const std::string cocoNames = io::pwd() + "/resources/coco.names";
-    module = torch::jit::load(scriptName);
-    std::ifstream f(cocoNames);
-    std::string name;
-    while (std::getline(f, name)) {
-        classNames.push_back(name);
-    }
-}
-
 void i3dutils::adapt(const int& index, Point& point,
     const std::vector<int16_t>& pCloud, const std::vector<uint8_t>& image)
 {
@@ -283,27 +270,44 @@ void i3dutils::show(const int& h, const int& w, uint8_t* bgraData,
     }
 }
 
+void i3dutils::configTorch(
+    std::vector<std::string>& classNames, torch::jit::script::Module& module)
+{
+    const std::string torchscript = io::pwd() + "/resources/best.pt";
+    const std::string classnames = io::pwd() + "/resources/class.names";
+    module = torch::jit::load(torchscript);
+    std::ifstream f(classnames);
+    std::string name;
+    while (std::getline(f, name)) {
+        classNames.push_back(name);
+    }
+}
+
 void i3dutils::findObjects(const int& h, const int& w, uint8_t* bgraData,
     std::vector<std::string>& classnames, torch::jit::script::Module& module,
     std::shared_ptr<i3d>& sptr_i3d)
 {
     clock_t start = clock();
 
-    cv::Mat frame, frameResized;
+    cv::Mat frame, frameResized, unmodified, difference;
     frame = cv::Mat(h, w, CV_8UC4, (void*)bgraData, cv::Mat::AUTO_STEP).clone();
+    unmodified = frame;
+
+    const int T_HEIGHT = 640; // tensor image height
+    const int T_WIDTH = 640;  // tensor image width
 
     // format frame for tensor input
-    cv::resize(frame, frameResized, cv::Size(640, 384));
+    cv::resize(frame, frameResized, cv::Size(T_WIDTH, T_HEIGHT)); // this is where Im getting it wrong
     cv::cvtColor(frameResized, frameResized, cv::COLOR_BGR2RGB);
-    torch::Tensor imgTensor = torch::from_blob(frameResized.data,
+    torch::Tensor tensor = torch::from_blob(frameResized.data,
         { frameResized.rows, frameResized.cols, 3 }, torch::kByte);
-    imgTensor = imgTensor.permute({ 2, 0, 1 });
-    imgTensor = imgTensor.toType(torch::kFloat);
-    imgTensor = imgTensor.div(255);
-    imgTensor = imgTensor.unsqueeze(0);
+    tensor = tensor.permute({ 2, 0, 1 });
+    tensor = tensor.toType(torch::kFloat);
+    tensor = tensor.div(255);
+    tensor = tensor.unsqueeze(0);
 
     torch::Tensor preds // preds: [?, 15120, 9]
-        = module.forward({ imgTensor }).toTuple()->elements()[0].toTensor();
+        = module.forward({ tensor }).toTuple()->elements()[0].toTensor();
     std::vector<torch::Tensor> dets
         = yolo::non_max_suppression(preds, 0.4, 0.5);
 
@@ -311,13 +315,13 @@ void i3dutils::findObjects(const int& h, const int& w, uint8_t* bgraData,
     if (!dets.empty()) {
         for (int64_t i = 0; i < dets[0].sizes()[0]; ++i) {
             auto left = (int)(dets[0][i][0].item().toFloat() * (float)frame.cols
-                / 640);
+                / T_WIDTH);
             auto top = (int)(dets[0][i][1].item().toFloat() * (float)frame.rows
-                / 384);
+                / T_HEIGHT);
             auto right = (int)(dets[0][i][2].item().toFloat()
-                * (float)frame.cols / 640);
+                * (float)frame.rows / T_WIDTH);
             auto bottom = (int)(dets[0][i][3].item().toFloat()
-                * (float)frame.rows / 384);
+                * (float)frame.cols / T_HEIGHT);
             float score = dets[0][i][4].item().toFloat();
             int classID = dets[0][i][5].item().toInt();
 
@@ -342,8 +346,12 @@ void i3dutils::findObjects(const int& h, const int& w, uint8_t* bgraData,
         cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0),
         2);
 
-    cv::imshow("i3d", frame);
+    difference = unmodified - frame;
+    //cv::imshow("i3d", frame);
+    cv::imshow("i3d", difference);
     if (cv::waitKey(1) == 27) {
         sptr_i3d->stop();
     }
+    // std::cout << "reached checkpoint with no issues" << std::endl;
+    // sptr_i3d->stop();
 }
