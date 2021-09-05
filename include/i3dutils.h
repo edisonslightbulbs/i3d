@@ -4,15 +4,11 @@
 #include <opencv2/core/mat.hpp>
 #include <string>
 #include <thread>
-#include <torch/script.h>
 
 #include "i3d.h"
 #include "io.h"
 
 namespace i3dutils {
-
-void configTorch(
-    std::vector<std::string>& classNames, torch::jit::script::Module& module);
 
 void adapt(const int& index, Point& point, const std::vector<int16_t>& pCloud,
     const std::vector<uint8_t>& image);
@@ -62,10 +58,6 @@ void stitch(const int& index, Point& point, std::vector<int16_t>& pCloud,
 int randNum(const int& max);
 
 void show(const int& h, const int& w, uint8_t* bgraData,
-    std::shared_ptr<i3d>& sptr_i3d);
-
-void findObjects(const int& h, const int& w, uint8_t* bgraData,
-    std::vector<std::string>& classnames, torch::jit::Module& module,
     std::shared_ptr<i3d>& sptr_i3d);
 }
 #endif /*INTACT_UTILS_H*/
