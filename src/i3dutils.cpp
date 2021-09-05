@@ -1,14 +1,11 @@
 #include <cmath>
 #include <k4a/k4a.hpp>
-#include <opencv2/core.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/opencv.hpp>
 #include <random>
-#include <torch/script.h>
 
 #include "i3dutils.h"
 #include "point.h"
-#include "yolov5.h"
 
 // colors handy for coloring clusters:
 // see@ https://colorbrewer2.org/#type=diverging&scheme=RdYlBu&n=9
@@ -268,90 +265,4 @@ void i3dutils::show(const int& h, const int& w, uint8_t* bgraData,
     if (cv::waitKey(1) == 27) {
         sptr_i3d->stop();
     }
-}
-
-void i3dutils::configTorch(
-    std::vector<std::string>& classNames, torch::jit::script::Module& module)
-{
-    const std::string torchscript = io::pwd() + "/resources/best.pt";
-    const std::string classnames = io::pwd() + "/resources/class.names";
-    module = torch::jit::load(torchscript);
-    std::ifstream f(classnames);
-    std::string name;
-    while (std::getline(f, name)) {
-        classNames.push_back(name);
-    }
-}
-
-void i3dutils::findObjects(const int& h, const int& w, uint8_t* bgraData,
-    std::vector<std::string>& classnames, torch::jit::script::Module& module,
-    std::shared_ptr<i3d>& sptr_i3d)
-{
-    clock_t start = clock();
-
-    cv::Mat frame, frameResized, unmodified, difference;
-    frame = cv::Mat(h, w, CV_8UC4, (void*)bgraData, cv::Mat::AUTO_STEP).clone();
-    unmodified = frame;
-
-    const int T_HEIGHT = 640; // tensor image height
-    const int T_WIDTH = 640;  // tensor image width
-
-    // format frame for tensor input
-    cv::resize(frame, frameResized, cv::Size(T_WIDTH, T_HEIGHT)); // this is where Im getting it wrong
-    cv::cvtColor(frameResized, frameResized, cv::COLOR_BGR2RGB);
-    torch::Tensor tensor = torch::from_blob(frameResized.data,
-        { frameResized.rows, frameResized.cols, 3 }, torch::kByte);
-    tensor = tensor.permute({ 2, 0, 1 });
-    tensor = tensor.toType(torch::kFloat);
-    tensor = tensor.div(255);
-    tensor = tensor.unsqueeze(0);
-
-    torch::Tensor preds // preds: [?, 15120, 9]
-        = module.forward({ tensor }).toTuple()->elements()[0].toTensor();
-    std::vector<torch::Tensor> dets
-        = yolo::non_max_suppression(preds, 0.4, 0.5);
-
-    // show objects
-    if (!dets.empty()) {
-        for (int64_t i = 0; i < dets[0].sizes()[0]; ++i) {
-            auto left = (int)(dets[0][i][0].item().toFloat() * (float)frame.cols
-                / T_WIDTH);
-            auto top = (int)(dets[0][i][1].item().toFloat() * (float)frame.rows
-                / T_HEIGHT);
-            auto right = (int)(dets[0][i][2].item().toFloat()
-                * (float)frame.rows / T_WIDTH);
-            auto bottom = (int)(dets[0][i][3].item().toFloat()
-                * (float)frame.cols / T_HEIGHT);
-            float score = dets[0][i][4].item().toFloat();
-            int classID = dets[0][i][5].item().toInt();
-
-            cv::rectangle(frame,
-                cv::Rect(left, top, (right - left), (bottom - top)),
-                cv::Scalar(0, 255, 0), 1);
-            // todo:: we can introduce a mapping function here that
-            //   evaluates classnames
-            //  1. find closest free space in vacant surface
-            //  2. allocate coordinates for the projection
-            //  3. project .... cause bob is your uncle
-            //
-            cv::putText(frame,
-                classnames[classID] + ": " + cv::format("%.2f", score),
-                cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX,
-                (double)(right - left) / 200, cv::Scalar(0, 255, 0), 1);
-        }
-    }
-
-    cv::putText(frame,
-        "FPS: " + std::to_string(int(1e7 / (double)(clock() - start))),
-        cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0),
-        2);
-
-    difference = unmodified - frame;
-    //cv::imshow("i3d", frame);
-    cv::imshow("i3d", difference);
-    if (cv::waitKey(1) == 27) {
-        sptr_i3d->stop();
-    }
-    // std::cout << "reached checkpoint with no issues" << std::endl;
-    // sptr_i3d->stop();
 }
